@@ -1,19 +1,43 @@
 {
-  "_comment": "این فایل را در پوشه share با نام share_users.seed.json قرار دهید، رمزها را تنظیم کنید، سپس scripts/init_share را اجرا کنید. فایل seed پس از import خودکار حذف می‌شود.",
+  "_comment": "۱) کپی این فایل به share_users.seed.json  ۲) رمزها را عوض کنید (CHANGE_ME قبول نمی‌شود)  ۳) فایل را در پوشه share بگذارید  ۴) scripts/init_share را اجرا کنید  ۵) بعد از موفقیت فایل seed خودکار حذف می‌شود — رمزها را یادداشت کنید",
+  "_roles": {
+    "admin": "مدیر سیستم — کاربران، پنل سیستم، import اکسل",
+    "manager": "مدیر تدارکات — بررسی استعلام، گزارش‌ها",
+    "expert": "کارشناس — فیلد expert باید دقیقاً مثل نام «کارشناس خرید» در ERP باشد",
+    "warehouse": "مسئول انبار — فیلد warehouse اجباری است (مثلاً انبار مصرفی)"
+  },
   "users": [
     {
       "username": "admin",
       "password": "CHANGE_ME_STRONG_PASSWORD",
       "name": "مدیر سیستم",
       "role": "admin",
-      "expert": null
+      "expert": null,
+      "warehouse": null
     },
     {
       "username": "manager",
       "password": "CHANGE_ME_STRONG_PASSWORD",
       "name": "مدیر تدارکات",
       "role": "manager",
-      "expert": null
+      "expert": null,
+      "warehouse": null
+    },
+    {
+      "username": "mostafa",
+      "password": "CHANGE_ME_STRONG_PASSWORD",
+      "name": "مصطفی رضوانی",
+      "role": "expert",
+      "expert": "مصطفی رضوانی",
+      "warehouse": null
+    },
+    {
+      "username": "anbar",
+      "password": "CHANGE_ME_STRONG_PASSWORD",
+      "name": "مسئول انبار مصرفی",
+      "role": "warehouse",
+      "expert": null,
+      "warehouse": "انبار مصرفی"
     }
   ]
 }

@@ -29,7 +29,10 @@ install.bat
 
 1. `shared_data_dir` = مسیر share شبکه، مثلاً:
    `\\server\share\tadarokat\data`
-2. `share_users.seed.json` را در share بگذارید (از `share_users.seed.example.json`)
+2. ساخت کاربران — **راهنمای کامل:** [README گام ۵](../README.md#گام-۵--ساخت-کاربران-خیلی-مهم)
+   - کپی `share_users.seed.example.json` → `share_users.seed.json`
+   - رمزهای `CHANGE_ME` را عوض کنید
+   - فایل را در پوشه share بگذارید
 3. `scripts\init_share.bat`
 
 ---
@@ -89,7 +92,7 @@ run.bat
 
 | سند | موضوع |
 |-----|--------|
-| [README](../README.md) | دریافت پروژه، نصب، اجرا، تست ساده |
+| [README](../README.md) | راهنمای صفر تا صد: Python، نصب، **ساخت کاربران**، اکسل، تست |
 | [ARCHITECTURE](ARCHITECTURE.md) | ساختار DB، import، همزمانی، API |
 | [share.config.example.json](../share.config.example.json) | نمونه تنظیم share |
 | [share_users.seed.example.json](../share_users.seed.example.json) | نمونه کاربران اولیه |

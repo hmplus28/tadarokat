@@ -8,50 +8,82 @@
 
 ## فهرست مستندات
 
-| سند | برای چه کسی | محتوا |
-|-----|-------------|--------|
-| **همین README** | همه — مخصوصاً تازه‌وارد | دریافت، نصب، اجرا، تست ساده |
-| [راهنمای استقرار](docs/DEPLOYMENT.md) | IT / admin | شبکه، share، import اکسل، ویندوز |
-| [معماری داده](docs/ARCHITECTURE.md) | توسعه‌دهنده / IT | DB، import، همزمانی، API سیستم |
-
-**فایل‌های نمونه تنظیمات**
-
-| فایل | توضیح |
-|------|--------|
-| [share.config.example.json](share.config.example.json) | مسیر پوشه share و پورت سرور |
-| [share_users.seed.example.json](share_users.seed.example.json) | کاربران اولیه (قبل از `init_share`) |
-
-**اسکریپت‌های پرکاربرد** → جزئیات در [DEPLOYMENT](docs/DEPLOYMENT.md#خلاصه)
-
-| اسکریپت | کار |
-|---------|-----|
-| `install.bat` / [install.sh](install.sh) | نصب یک‌بار |
-| `run.bat` / [run.sh](run.sh) | اجرای روزانه |
-| [scripts/init_share.bat](scripts/init_share.bat) / [init_share.sh](scripts/init_share.sh) | راه‌اندازی اول share |
-| [scripts/e2e_api_test.sh](scripts/e2e_api_test.sh) | تست خودکار API |
+| سند | مخاطب | محتوا |
+|-----|--------|--------|
+| **همین README** | همه | راهنمای صفر تا صد نصب |
+| [راهنمای استقرار](docs/DEPLOYMENT.md) | IT / admin | شبکه، share چندکاربره، import روزانه |
+| [معماری داده](docs/ARCHITECTURE.md) | توسعه‌دهنده | DB، import، همزمانی |
 
 ---
 
-## چه چیزهایی لازم دارید؟
+# راهنمای نصب — از صفر تا اجرا
 
-| مورد | توضیح |
-|------|--------|
-| **Python 3.9+** | [python.org](https://www.python.org/downloads/) — در ویندوز **Add Python to PATH** |
-| **مرورگر** | Chrome، Edge یا Firefox |
-| **اینترنت** | برای UI (CDN فونت و Tailwind) |
-
-استقرار تیمی روی شبکه → [راهنمای استقرار](docs/DEPLOYMENT.md)
+این بخش برای کسی است که **Git و Python** را کم‌وبیش نمی‌شناسد. مراحل را **به ترتیب** انجام دهید.
 
 ---
 
-## مرحله ۱ — دریافت پروژه
+## گام ۰ — چه چیزهایی لازم است؟
 
-### روش ساده (بدون Git)
+| مورد | چرا |
+|------|-----|
+| **ویندوز ۱۰/۱۱** (یا لینوکس) | محیط اجرا |
+| **Python 3.9 یا بالاتر** | موتور برنامه (گام ۱) |
+| **مرورگر** (Chrome / Edge) | باز کردن سامانه |
+| **اینترنت** | بار اول برای ظاهر UI (فونت و Tailwind) |
+| **فایل اکسل خرید** (`input.xlsx`) | دادهٔ درخواست‌ها — بعداً در گام ۷ |
+
+---
+
+## گام ۱ — نصب Python (ویندوز)
+
+### ۱.۱ دانلود
+
+1. بروید به: https://www.python.org/downloads/  
+2. دکمه **Download Python 3.x** را بزنید.  
+3. فایل نصب (مثلاً `python-3.12.x-amd64.exe`) را اجرا کنید.
+
+### ۱.۲ نصب — مهم
+
+در اولین صفحه نصب:
+
+- حتماً تیک **Add python.exe to PATH** را بزنید.  
+- روی **Install Now** کلیک کنید.  
+- صبر کنید تا **Setup was successful** بیاید.
+
+### ۱.۳ تست نصب
+
+1. کلیدهای `Win + R` را بزنید.  
+2. بنویسید `cmd` و Enter.  
+3. در پنجره سیاه بنویسید:
+
+```cmd
+python --version
+```
+
+باید چیزی شبیه `Python 3.12.x` ببینید.
+
+اگر خطای *python is not recognized* آمد → Python را دوباره نصب کنید و تیک PATH را بزنید.
+
+### لینوکس (اختیاری)
+
+```bash
+python3 --version
+# اگر نبود:
+sudo apt update && sudo apt install -y python3 python3-venv python3-pip
+```
+
+---
+
+## گام ۲ — دریافت پروژه
+
+### بدون Git (ساده‌تر)
 
 1. https://github.com/hmplus28/tadarokat  
-2. **Code** → **Download ZIP**  
-3. Extract کنید (مثلاً `Documents\tadarokat`)  
-4. باید `install.bat`، `run.bat` و پوشه `backend` را ببینید.
+2. دکمه سبز **Code** → **Download ZIP**  
+3. ZIP را Extract کنید، مثلاً در:  
+   `C:\Users\نامشما\Documents\tadarokat`  
+4. داخل پوشه باید این‌ها را ببینید:  
+   `install.bat` · `run.bat` · پوشه `backend` · پوشه `frontend`
 
 ### با Git
 
@@ -62,93 +94,302 @@ cd tadarokat
 
 ---
 
-## مرحله ۲ — نصب (یک بار)
+## گام ۳ — نصب برنامه (یک بار روی هر PC)
 
 ### ویندوز
 
-1. پوشه پروژه را باز کنید.  
-2. **`install.bat`** را اجرا کنید.  
-3. تا «نصب کامل شد» صبر کنید.
+1. پوشه `tadarokat` را در File Explorer باز کنید.  
+2. روی **`install.bat`** دوبار کلیک کنید.  
+3. صبر کنید تا پیام **نصب کامل** بیاید و Enter بزنید.
 
-برای تست لوکال، `share.config.json` خودکار ساخته می‌شود.  
-برای شبکه: [DEPLOYMENT — تنظیم share](docs/DEPLOYMENT.md#it--یک-بار)
+**این مرحله چه کار می‌کند؟**
+
+- ساخت محیط مجازی Python (پوشه `.venv`)  
+- نصب کتابخانه‌ها از `backend/requirements.txt`  
+- ساخت قالب پایگاه داده (`templates/db_current.db`)  
+- ساخت `share.config.json` اگر نباشد  
 
 ### لینوکس
 
 ```bash
-chmod +x install.sh run.sh
+cd مسیر/tadarokat
+chmod +x install.sh run.sh scripts/init_share.sh
 ./install.sh
 ```
 
 ---
 
-## مرحله ۳ — اجرا
+## گام ۴ — تنظیم پوشه داده (share)
 
-| سیستم | دستور |
-|--------|--------|
-| ویندوز | `run.bat` (پنجره را نبندید) |
-| لینوکس | `./run.sh` |
+فایل **`share.config.json`** مسیر دادهٔ مشترک را مشخص می‌کند.
 
-مرورگر: **http://127.0.0.1:8000**
+### تست روی یک کامپیوتر (لوکال)
 
----
+معمولاً بعد از `install.bat` همین فایل ساخته شده و کافی است. اگر `shared_data_dir` خالی یا نامشخص است:
 
-## مرحله ۴ — تست با مرورگر
+1. فایل `share.config.example.json` را باز کنید.  
+2. کپی کنید به `share.config.json` (اگر نیست).  
+3. برای تست تک‌کاربره:
 
-### ورود
-
-بعد از [راه‌اندازی share](docs/DEPLOYMENT.md#it--یک-بار) و seed کاربران:
-
-| کاربر | رمز | نقش |
-|-------|-----|-----|
-| `admin` | `admin123` | مدیر سیستم |
-| `manager` | `manager123` | مدیر تدارکات |
-| `mostafa` | `mostafa123` | کارشناس |
-
-ورود نشد؟ → `scripts\init_share.bat` و [share_users.seed.example.json](share_users.seed.example.json)
-
-### چک‌لیست
-
-- [ ] داشبورد باز می‌شود  
-- [ ] **درخواست‌های خرید** لیست دارد  
-- [ ] **🔄 آخرین داده** کار می‌کند  
-- [ ] با `admin` → **پنل سیستم** ([جزئیات دکمه‌ها](docs/DEPLOYMENT.md#دکمه‌های-پنل))
-
----
-
-## مرحله ۵ — تست API (اختیاری)
-
-با سرور روشن:
-
-```bash
-# لینوکس / Git Bash
-./scripts/e2e_api_test.sh
-# یا
-python3 scripts/e2e_api_test.py
+```json
+{
+  "shared_data_dir": "./data",
+  "local_data_dir": "",
+  "port": 8000,
+  "mode": "full",
+  "host": "127.0.0.1"
+}
 ```
 
-باید خطوط `[OK]` ببینید.
+پوشه `data` کنار پروژه ساخته می‌شود و همه فایل‌ها آنجا می‌روند.
+
+### استفاده در شبکه (چند کاربر)
+
+`shared_data_dir` را به مسیر share شبکه بگذارید، مثلاً:
+
+```json
+"shared_data_dir": "\\\\server\\share\\tadarokat\\data"
+```
+
+جزئیات بیشتر: [راهنمای استقرار — IT](docs/DEPLOYMENT.md#it--یک-بار)
+
+| فیلد | معنی |
+|------|------|
+| `shared_data_dir` | پوشه مشترک: DB، اکسل، لاگ |
+| `port` | پورت سرور (پیش‌فرض ۸۰۰۰) |
+| `mode` | `full` = همه قابلیت‌ها روی این PC |
 
 ---
 
-## ساختار پروژه
+## گام ۵ — ساخت کاربران (خیلی مهم)
+
+کاربران در **پایگاه داده روی share** ذخیره می‌شوند، نه داخل کد پروژه.  
+اولین بار باید فایل **seed** بسازید و `init_share` را اجرا کنید.
+
+### ۵.۱ نقش‌های سیستم
+
+| نقش (`role`) | کاربرد | فیلدهای اضافه |
+|--------------|--------|----------------|
+| `admin` | IT — کاربران، import اکسل، پنل سیستم | — |
+| `manager` | مدیر تدارکات — بررسی استعلام، گزارش | — |
+| `expert` | کارشناس خرید | **`expert`** = نام دقیق در ERP (ستون کارشناس خرید) |
+| `warehouse` | مسئول انبار | **`warehouse`** = نام انبار (مثلاً `انبار مصرفی`) |
+
+### ۵.۲ ساخت فایل seed
+
+1. فایل [share_users.seed.example.json](share_users.seed.example.json) را باز کنید.  
+2. **Save As** با نام: **`share_users.seed.json`**  
+3. برای **هر کاربر** فیلد `password` را عوض کنید.  
+   - `CHANGE_ME_STRONG_PASSWORD` **قبول نمی‌شود**  
+   - رمزها را در جای امن یادداشت کنید (فایل seed بعداً حذف می‌شود)
+
+**نمونه کارشناس** — نام `expert` باید **دقیقاً** مثل اکسل باشد:
+
+```json
+{
+  "username": "mostafa",
+  "password": "رمز-قوی-شما",
+  "name": "مصطفی رضوانی",
+  "role": "expert",
+  "expert": "مصطفی رضوانی",
+  "warehouse": null
+}
+```
+
+**نمونه انبار:**
+
+```json
+{
+  "username": "anbar",
+  "password": "رمز-قوی-شما",
+  "name": "مسئول انبار مصرفی",
+  "role": "warehouse",
+  "expert": null,
+  "warehouse": "انبار مصرفی"
+}
+```
+
+### ۵.۳ کجا فایل seed را بگذاریم؟
+
+فایل `share_users.seed.json` را در **پوشه share** قرار دهید:
+
+- لوکال: `tadarokat\data\share_users.seed.json`  
+- شبکه: `\\server\share\tadarokat\data\share_users.seed.json`
+
+(همان مسیری که در `share.config.json` → `shared_data_dir` است)
+
+### ۵.۴ اجرای init_share (یک بار — معمولاً IT)
+
+این دستور:
+
+- `db_current.db` را روی share می‌سازد  
+- کاربران seed را وارد DB می‌کند  
+- **فایل seed را حذف می‌کند** (امنیت)
+
+**ویندوز:**
+
+```cmd
+cd C:\Users\...\Documents\tadarokat
+scripts\init_share.bat
+```
+
+**لینوکس:**
+
+```bash
+./scripts/init_share.sh
+```
+
+خروجی موفق:
+
+```
+✓ share آماده شد
+  DB: ...\data\db_current.db
+  کاربران: 4
+  • 4 کاربر از seed وارد شد — فایل seed حذف شد.
+```
+
+### ۵.۵ اگر init_share خطا داد
+
+| پیام | کار |
+|------|-----|
+| `رمز ... هنوز تنظیم نشده` | همه `CHANGE_ME` را در seed عوض کنید |
+| `فایل seed یافت نشد` | `share_users.seed.json` را در پوشه `data` بگذارید |
+| `کاربری در DB نیست` | seed را دوباره بگذارید و init_share را تکرار کنید |
+
+### ۵.۶ افزودن کاربر بعداً (بدون seed)
+
+بعد از ورود با `admin`:
+
+1. منو → **کاربران**  
+2. **افزودن کاربر** — نام کاربری، رمز، نقش  
+3. برای `expert`: فیلد expert = نام ERP  
+4. برای `warehouse`: نام انبار را پر کنید  
+
+> **توجه:** `init_share` فقط وقتی DB خالی است seed می‌خواند. اگر کاربر دارید، از پنل admin استفاده کنید.
+
+---
+
+## گام ۶ — قرار دادن فایل اکسل خرید
+
+سامانه دادهٔ ERP را از اکسل می‌خواند (نه مستقیم در حین کار).
+
+1. فایل روزانه ERP را با نام **`input.xlsx`** در پوشه share بگذارید:  
+   `data\input.xlsx`  
+2. یا لینک/کپی با نام `purchases.xlsx` در همان پوشه.
+
+بدون اکسل، برنامه اجرا می‌شود ولی لیست درخواست‌ها خالی است.
+
+---
+
+## گام ۷ — اجرای سامانه
+
+### هر بار که می‌خواهید کار کنید
+
+| سیستم | کار |
+|--------|-----|
+| ویندوز | دوبار کلیک **`run.bat`** — پنجره را **نبندید** |
+| لینوکس | `./run.sh` |
+
+### باز کردن در مرورگر
+
+```
+http://127.0.0.1:8000
+```
+
+صفحه **ورود به سامانه** باید بیاید.
+
+### خاموش کردن
+
+پنجره `run.bat` را ببندید یا `Ctrl + C` در ترمینال.
+
+---
+
+## گام ۸ — ورود و تست اولیه
+
+### ۸.۱ ورود
+
+با کاربر و رمزی که در seed (گام ۵) تعریف کردید وارد شوید.
+
+برای محیط تستی نمونه (اگر همان رمزهای demo را گذاشته باشید):
+
+| کاربر | رمز نمونه | نقش |
+|-------|-----------|-----|
+| `admin` | `admin123` | مدیر سیستم |
+| `manager` | `manager123` | مدیر |
+| `mostafa` | `mostafa123` | کارشناس |
+| `anbar` | `anbar123` | انبار |
+
+### ۸.۲ import اکسل به دیتابیس (admin)
+
+1. با `admin` وارد شوید.  
+2. منو → **پنل سیستم**.  
+3. دکمه **اکسل را الان به دیتابیس import کن**.  
+4. بعد از موفقیت، **درخواست‌های خرید** را باز کنید — باید داده ببینید.
+
+### ۸.۳ چک‌لیست تست
+
+- [ ] داشبورد باز می‌شود  
+- [ ] درخواست‌های خرید لیست دارد (بعد از import)  
+- [ ] دکمه **🔄 آخرین داده** در هدر کار می‌کند  
+- [ ] کارشناس فقط درخواست‌های خودش را می‌بیند  
+- [ ] مدیر → بررسی استعلام / گزارش‌ها  
+
+### ۸.۴ تست خودکار API (اختیاری)
+
+با روشن بودن `run.bat`:
+
+```bash
+# ویندوز — Git Bash یا WSL
+bash scripts/e2e_api_test.sh
+```
+
+```bash
+# لینوکس
+./scripts/e2e_api_test.sh
+```
+
+باید چند خط `[OK]` ببینید.
+
+---
+
+## خلاصه مراحل (یک نگاه)
+
+```
+۱ Python نصب + PATH
+۲ دانلود ZIP پروژه
+۳ install.bat
+۴ share.config.json → مسیر data یا share شبکه
+۵ share_users.seed.json → رمز واقعی → data\ → init_share.bat
+۶ input.xlsx در data
+۷ run.bat → http://127.0.0.1:8000
+۸ ورود admin → import اکسل → تست
+```
+
+---
+
+## ساختار پوشه‌ها
 
 ```
 tadarokat/
-├── README.md                  ← شروع از اینجا
+├── README.md
+├── install.bat / install.sh      ← گام ۳
+├── run.bat / run.sh              ← گام ۷
+├── share.config.json             ← گام ۴
+├── share_users.seed.example.json ← گام ۵ (نمونه)
+├── data/                         ← پوشه share لوکال
+│   ├── share_users.seed.json     ← قبل از init (موقت)
+│   ├── db_current.db             ← بعد از init
+│   ├── input.xlsx              ← گام ۶
+│   └── logs/
 ├── docs/
-│   ├── DEPLOYMENT.md          ← استقرار شبکه
-│   └── ARCHITECTURE.md        ← معماری DB و import
-├── install.bat / install.sh
-├── run.bat / run.sh
-├── share.config.example.json
-├── share_users.seed.example.json
-├── backend/                   ← FastAPI
-├── frontend/                  ← UI
-└── scripts/                   ← init_share، import، تست
+│   ├── DEPLOYMENT.md
+│   └── ARCHITECTURE.md
+├── backend/
+├── frontend/
+└── scripts/
+    ├── init_share.bat            ← گام ۵
+    └── e2e_api_test.sh         ← گام ۸
 ```
-
-چرا `db_current.db` و نه مستقیم اکسل؟ → [معماری داده](docs/ARCHITECTURE.md)
 
 ---
 
@@ -156,27 +397,29 @@ tadarokat/
 
 | مشکل | راه‌حل |
 |------|--------|
-| صفحه باز نمی‌شود | `run.bat` + `http://127.0.0.1:8000` |
-| `python` پیدا نشد | نصب Python + PATH |
-| ورود نمی‌شود | [init_share](docs/DEPLOYMENT.md#it--یک-بار) + seed |
-| داده قدیمی | **🔄 آخرین داده** یا [import اکسل](docs/DEPLOYMENT.md#دکمه‌های-پنل) |
+| `python` پیدا نشد | گام ۱ — PATH |
+| صفحه باز نمی‌شود | `run.bat` روشن باشد |
+| ورود نمی‌شود | گام ۵ — init_share + seed |
+| لیست خالی است | گام ۶ + گام ۸ import اکسل |
+| کارشناس داده نمی‌بیند | `expert` در seed = نام دقیق ERP |
+| داده قدیمی | **🔄 آخرین داده** یا import دوباره |
 | UI خراب | اینترنت + Ctrl+F5 |
-| import / share | [عیب‌یابی استقرار](docs/DEPLOYMENT.md#عیب‌یابی) |
+| share شبکه | [DEPLOYMENT](docs/DEPLOYMENT.md) |
 
 ---
 
-## مسیر یادگیری پیشنهادی
+## مسیر یادگیری
 
 ```
-README (نصب و تست لوکال)
+README (همین سند — نصب کامل)
     ↓
-DEPLOYMENT (شبکه و تیم)
+DEPLOYMENT (چند PC، import خودکار ۸ صبح)
     ↓
-ARCHITECTURE (جزئیات فنی DB و API)
+ARCHITECTURE (جزئیات DB و API)
 ```
 
 ---
 
 ## پشتیبانی
 
-Issue: https://github.com/hmplus28/tadarokat/issues
+https://github.com/hmplus28/tadarokat/issues
