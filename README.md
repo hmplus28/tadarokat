@@ -2,7 +2,33 @@
 
 برنامهٔ تحت وب برای مدیریت درخواست‌های خرید، استعلام، دستور خرید و گزارش‌گیری.
 
-**آدرس ریپو:** https://github.com/hmplus28/tadarokat
+**ریپو:** https://github.com/hmplus28/tadarokat
+
+---
+
+## فهرست مستندات
+
+| سند | برای چه کسی | محتوا |
+|-----|-------------|--------|
+| **همین README** | همه — مخصوصاً تازه‌وارد | دریافت، نصب، اجرا، تست ساده |
+| [راهنمای استقرار](docs/DEPLOYMENT.md) | IT / admin | شبکه، share، import اکسل، ویندوز |
+| [معماری داده](docs/ARCHITECTURE.md) | توسعه‌دهنده / IT | DB، import، همزمانی، API سیستم |
+
+**فایل‌های نمونه تنظیمات**
+
+| فایل | توضیح |
+|------|--------|
+| [share.config.example.json](share.config.example.json) | مسیر پوشه share و پورت سرور |
+| [share_users.seed.example.json](share_users.seed.example.json) | کاربران اولیه (قبل از `init_share`) |
+
+**اسکریپت‌های پرکاربرد** → جزئیات در [DEPLOYMENT](docs/DEPLOYMENT.md#خلاصه)
+
+| اسکریپت | کار |
+|---------|-----|
+| `install.bat` / [install.sh](install.sh) | نصب یک‌بار |
+| `run.bat` / [run.sh](run.sh) | اجرای روزانه |
+| [scripts/init_share.bat](scripts/init_share.bat) / [init_share.sh](scripts/init_share.sh) | راه‌اندازی اول share |
+| [scripts/e2e_api_test.sh](scripts/e2e_api_test.sh) | تست خودکار API |
 
 ---
 
@@ -10,23 +36,24 @@
 
 | مورد | توضیح |
 |------|--------|
-| **Python 3.9 یا بالاتر** | از [python.org](https://www.python.org/downloads/) نصب کنید. در ویندوز هنگام نصب گزینه **Add Python to PATH** را بزنید. |
+| **Python 3.9+** | [python.org](https://www.python.org/downloads/) — در ویندوز **Add Python to PATH** |
 | **مرورگر** | Chrome، Edge یا Firefox |
-| **اینترنت** | فقط برای بار اول UI (فونت و Tailwind از CDN) |
+| **اینترنت** | برای UI (CDN فونت و Tailwind) |
+
+استقرار تیمی روی شبکه → [راهنمای استقرار](docs/DEPLOYMENT.md)
 
 ---
 
-## مرحله ۱ — دریافت پروژه (بدون نیاز به دانش Git)
+## مرحله ۱ — دریافت پروژه
 
-### روش ساده (پیشنهادی): دانلود ZIP
+### روش ساده (بدون Git)
 
-1. بروید به: https://github.com/hmplus28/tadarokat  
-2. دکمه سبز **Code** را بزنید.  
-3. **Download ZIP** را انتخاب کنید.  
-4. فایل ZIP را Extract کنید (مثلاً در `Documents\tadarokat`).  
-5. داخل پوشهٔ بازشده باید فایل‌های `install.bat`، `run.bat` و پوشهٔ `backend` را ببینید.
+1. https://github.com/hmplus28/tadarokat  
+2. **Code** → **Download ZIP**  
+3. Extract کنید (مثلاً `Documents\tadarokat`)  
+4. باید `install.bat`، `run.bat` و پوشه `backend` را ببینید.
 
-### روش دوم (اگر Git نصب دارید)
+### با Git
 
 ```bash
 git clone git@github.com:hmplus28/tadarokat.git
@@ -35,145 +62,121 @@ cd tadarokat
 
 ---
 
-## مرحله ۲ — نصب (یک بار روی هر کامپیوتر)
+## مرحله ۲ — نصب (یک بار)
 
 ### ویندوز
 
-1. پوشهٔ پروژه را باز کنید.  
-2. روی **`install.bat`** دوبار کلیک کنید (یا در CMD داخل همان پوشه اجرا کنید).  
-3. صبر کنید تا پیام «نصب کامل شد» بیاید.
+1. پوشه پروژه را باز کنید.  
+2. **`install.bat`** را اجرا کنید.  
+3. تا «نصب کامل شد» صبر کنید.
 
-اگر فایل `share.config.json` ساخته شد، برای تست لوکال معمولاً همان پیش‌فرض کافی است.  
-برای استفادهٔ تیمی، مسیر share شبکه را در `share.config.json` تنظیم کنید (جزئیات در `docs/DEPLOYMENT.md`).
+برای تست لوکال، `share.config.json` خودکار ساخته می‌شود.  
+برای شبکه: [DEPLOYMENT — تنظیم share](docs/DEPLOYMENT.md#it--یک-بار)
 
 ### لینوکس
 
 ```bash
-cd مسیر/پروژه/tadarokat
 chmod +x install.sh run.sh
 ./install.sh
 ```
 
 ---
 
-## مرحله ۳ — اجرا (هر بار که می‌خواهید کار کنید)
+## مرحله ۳ — اجرا
 
-### ویندوز
+| سیستم | دستور |
+|--------|--------|
+| ویندوز | `run.bat` (پنجره را نبندید) |
+| لینوکس | `./run.sh` |
 
-روی **`run.bat`** دوبار کلیک کنید.  
-پنجرهٔ سیاه باز می‌ماند — **نبندیدش**؛ با بستن آن سرور خاموش می‌شود.
-
-### لینوکس
-
-```bash
-./run.sh
-```
-
-### باز کردن در مرورگر
-
-آدرس را در مرورگر بزنید:
-
-```
-http://127.0.0.1:8000
-```
-
-اگر صفحهٔ ورود آمد، نصب درست بوده است.
+مرورگر: **http://127.0.0.1:8000**
 
 ---
 
-## مرحله ۴ — تست با مرورگر (ساده)
+## مرحله ۴ — تست با مرورگر
 
-### ۱) صفحه باز می‌شود؟
+### ورود
 
-- باید صفحهٔ **ورود به سامانه** با فیلد نام کاربری و رمز دیده شود.
+بعد از [راه‌اندازی share](docs/DEPLOYMENT.md#it--یک-بار) و seed کاربران:
 
-### ۲) ورود
-
-بعد از `init_share` و seed کاربران، با حساب‌های تعریف‌شده وارد شوید.  
-برای محیط تست لوکال (اگر seed پیش‌فرض import شده):
-
-| نام کاربری | رمز | نقش |
-|------------|-----|-----|
+| کاربر | رمز | نقش |
+|-------|-----|-----|
 | `admin` | `admin123` | مدیر سیستم |
 | `manager` | `manager123` | مدیر تدارکات |
 | `mostafa` | `mostafa123` | کارشناس |
 
-> اگر ورود نشد: یک بار `scripts\init_share.bat` (ویندوز) یا `scripts/init_share.sh` (لینوکس) را اجرا کنید و `share_users.seed.json` را از روی `share_users.seed.example.json` در پوشه share بگذارید.
+ورود نشد؟ → `scripts\init_share.bat` و [share_users.seed.example.json](share_users.seed.example.json)
 
-### ۳) چک‌لیست سریع بعد از ورود
+### چک‌لیست
 
-- [ ] **داشبورد** باز می‌شود  
-- [ ] منوی **درخواست‌های خرید** لیست نشان می‌دهد  
-- [ ] دکمه **🔄 آخرین داده** در بالای صفحه کار می‌کند  
-- [ ] با `admin` بروید به **پنل سیستم** — وضعیت share و دیتابیس دیده شود  
-
-### ۴) خاموش کردن
-
-پنجرهٔ `run.bat` / ترمینال `./run.sh` را ببندید یا `Ctrl+C` بزنید.
+- [ ] داشبورد باز می‌شود  
+- [ ] **درخواست‌های خرید** لیست دارد  
+- [ ] **🔄 آخرین داده** کار می‌کند  
+- [ ] با `admin` → **پنل سیستم** ([جزئیات دکمه‌ها](docs/DEPLOYMENT.md#دکمه‌های-پنل))
 
 ---
 
-## مرحله ۵ — تست خودکار API (اختیاری)
+## مرحله ۵ — تست API (اختیاری)
 
-اگر سرور در حال اجراست (`run.bat` یا `./run.sh`):
-
-### ویندوز (با Git Bash یا WSL)
+با سرور روشن:
 
 ```bash
-bash scripts/e2e_api_test.sh
-```
-
-### لینوکس
-
-```bash
+# لینوکس / Git Bash
 ./scripts/e2e_api_test.sh
-```
-
-یا:
-
-```bash
+# یا
 python3 scripts/e2e_api_test.py
 ```
 
-در پایان باید چند خط `[OK]` ببینید. اگر `[FAIL]` بود، اول مطمئن شوید سرور روشن است.
+باید خطوط `[OK]` ببینید.
 
 ---
 
-## ساختار مهم پوشه‌ها
+## ساختار پروژه
 
 ```
 tadarokat/
-├── install.bat / install.sh   ← نصب (یک بار)
-├── run.bat / run.sh           ← اجرا (هر روز)
-├── share.config.example.json  ← نمونه تنظیمات
-├── backend/                   ← سرور (FastAPI)
-├── frontend/                  ← رابط کاربری
-├── scripts/                   ← init_share، تست، import
-└── docs/DEPLOYMENT.md         ← راهنمای کامل شبکه و share
+├── README.md                  ← شروع از اینجا
+├── docs/
+│   ├── DEPLOYMENT.md          ← استقرار شبکه
+│   └── ARCHITECTURE.md        ← معماری DB و import
+├── install.bat / install.sh
+├── run.bat / run.sh
+├── share.config.example.json
+├── share_users.seed.example.json
+├── backend/                   ← FastAPI
+├── frontend/                  ← UI
+└── scripts/                   ← init_share، import، تست
 ```
+
+چرا `db_current.db` و نه مستقیم اکسل؟ → [معماری داده](docs/ARCHITECTURE.md)
 
 ---
 
 ## مشکلات رایج
 
-| مشکل | کار |
-|------|-----|
-| صفحه باز نمی‌شود | `run.bat` را اجرا کنید؛ آدرس `http://127.0.0.1:8000` |
-| `python` پیدا نشد | Python را نصب کنید و PATH را چک کنید |
-| ورود نمی‌شود | `init_share` و فایل seed کاربران را بررسی کنید |
-| داده قدیمی است | دکمه **🔄 آخرین داده** یا import اکسل از پنل admin |
-| ظاهر UI خراب است | اینترنت برای CDN؛ یک بار Ctrl+F5 |
+| مشکل | راه‌حل |
+|------|--------|
+| صفحه باز نمی‌شود | `run.bat` + `http://127.0.0.1:8000` |
+| `python` پیدا نشد | نصب Python + PATH |
+| ورود نمی‌شود | [init_share](docs/DEPLOYMENT.md#it--یک-بار) + seed |
+| داده قدیمی | **🔄 آخرین داده** یا [import اکسل](docs/DEPLOYMENT.md#دکمه‌های-پنل) |
+| UI خراب | اینترنت + Ctrl+F5 |
+| import / share | [عیب‌یابی استقرار](docs/DEPLOYMENT.md#عیب‌یابی) |
 
 ---
 
-## راهنمای بیشتر
+## مسیر یادگیری پیشنهادی
 
-- استقرار روی شبکه و share: `docs/DEPLOYMENT.md`  
-- معماری: `docs/ARCHITECTURE.md`
+```
+README (نصب و تست لوکال)
+    ↓
+DEPLOYMENT (شبکه و تیم)
+    ↓
+ARCHITECTURE (جزئیات فنی DB و API)
+```
 
 ---
 
 ## پشتیبانی
 
-مشکل یا سوال دارید → Issue در GitHub باز کنید:  
-https://github.com/hmplus28/tadarokat/issues
+Issue: https://github.com/hmplus28/tadarokat/issues

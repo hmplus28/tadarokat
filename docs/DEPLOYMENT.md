@@ -1,6 +1,9 @@
 # راهنمای استقرار — سامانه تدارکات (ویندوز)
 
-> همه سیستم‌ها **ویندوز** هستند. فایل‌های `.sh` فقط برای احتیاط نگه داشته شده‌اند.
+← [README — شروع و نصب سریع](../README.md) · [معماری داده](ARCHITECTURE.md)
+
+> همه سیستم‌ها **ویندوز** هستند. فایل‌های `.sh` فقط برای احتیاط نگه داشته شده‌اند.  
+> اولین بار؟ از [README](../README.md) شروع کنید (دریافت ZIP، `install.bat`، `run.bat`، تست مرورگر).
 
 ---
 
@@ -79,3 +82,14 @@ run.bat
 | داده قدیمی | دکمه «آخرین داده» |
 | اکسل جدید نیامده | admin → «اکسل را الان import کن» |
 | import خودکار نزد | PC IT روشن + «این PC مسئول…» |
+
+---
+
+## مستندات مرتبط
+
+| سند | موضوع |
+|-----|--------|
+| [README](../README.md) | دریافت پروژه، نصب، اجرا، تست ساده |
+| [ARCHITECTURE](ARCHITECTURE.md) | ساختار DB، import، همزمانی، API |
+| [share.config.example.json](../share.config.example.json) | نمونه تنظیم share |
+| [share_users.seed.example.json](../share_users.seed.example.json) | نمونه کاربران اولیه |

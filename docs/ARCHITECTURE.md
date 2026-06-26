@@ -1,5 +1,9 @@
 # معماری داده — سامانه تدارکات
 
+← [README — شروع و نصب سریع](../README.md) · [راهنمای استقرار](DEPLOYMENT.md)
+
+> برای نصب عملی روی PC یا شبکه ابتدا [README](../README.md) و سپس [DEPLOYMENT](DEPLOYMENT.md) را بخوانید.
+
 ## نمای کلی
 
 ```mermaid
@@ -131,3 +135,14 @@ data/   (یا TADAROKAT_SHARED_DATA)
 2. هر کاربر: clone پروژه + `./run.sh` + `TADAROKAT_SHARED_DATA=//server/...`
 3. یک ماشین/سرویس: `run_import.sh` روزانه پس از آپدیت `input.xlsx`
 4. کلاینت‌ها هرگز `input.xlsx` را مستقیم نمی‌خوانند
+
+---
+
+## مستندات مرتبط
+
+| سند | موضوع |
+|-----|--------|
+| [README](../README.md) | دریافت، نصب، اجرا، تست |
+| [DEPLOYMENT](DEPLOYMENT.md) | share شبکه، import، دکمه‌های پنل admin |
+| [scripts/run_import.sh](../scripts/run_import.sh) | import دستی / cron |
+| [scripts/e2e_api_test.sh](../scripts/e2e_api_test.sh) | تست API |
