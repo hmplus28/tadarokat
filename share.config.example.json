@@ -1,0 +1,14 @@
+{
+  "_comment": "کپی به share.config.json — سپس install و init_share",
+  "_steps": [
+    "1) install.sh یا install.bat",
+    "2) shared_data_dir را به پوشه share شبکه تنظیم کنید",
+    "3) share_users.seed.json را در share بگذارید (از share_users.seed.example.json)",
+    "4) scripts/init_share — DB آماده کپی می‌شود و seed حذف می‌شود"
+  ],
+  "shared_data_dir": "/mnt/share/tadarokat/data",
+  "local_data_dir": "",
+  "port": 8000,
+  "mode": "client",
+  "host": "127.0.0.1"
+}

@@ -1,0 +1,19 @@
+{
+  "_comment": "این فایل را در پوشه share با نام share_users.seed.json قرار دهید، رمزها را تنظیم کنید، سپس scripts/init_share را اجرا کنید. فایل seed پس از import خودکار حذف می‌شود.",
+  "users": [
+    {
+      "username": "admin",
+      "password": "CHANGE_ME_STRONG_PASSWORD",
+      "name": "مدیر سیستم",
+      "role": "admin",
+      "expert": null
+    },
+    {
+      "username": "manager",
+      "password": "CHANGE_ME_STRONG_PASSWORD",
+      "name": "مدیر تدارکات",
+      "role": "manager",
+      "expert": null
+    }
+  ]
+}
