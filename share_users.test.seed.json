@@ -1,0 +1,53 @@
+{
+  "_comment": "TEST ONLY - auto-used by test_run.bat / scripts/test_setup.py. Do not use in production.",
+  "users": [
+    {
+      "username": "admin",
+      "password": "admin123",
+      "name": "مدیر سیستم",
+      "role": "admin",
+      "expert": null,
+      "warehouse": null
+    },
+    {
+      "username": "manager",
+      "password": "manager123",
+      "name": "مدیر تدارکات",
+      "role": "manager",
+      "expert": null,
+      "warehouse": null
+    },
+    {
+      "username": "mostafa",
+      "password": "mostafa123",
+      "name": "مصطفی رضوانی",
+      "role": "expert",
+      "expert": "مصطفی رضوانی",
+      "warehouse": null
+    },
+    {
+      "username": "fabri",
+      "password": "fabri123",
+      "name": "فریبا صالح آبادی",
+      "role": "expert",
+      "expert": "فریبا صالح آبادی",
+      "warehouse": null
+    },
+    {
+      "username": "behnaz",
+      "password": "behnaz123",
+      "name": "بهناز عظیمی",
+      "role": "expert",
+      "expert": "بهناز عظیمی",
+      "warehouse": null
+    },
+    {
+      "username": "anbar",
+      "password": "anbar123",
+      "name": "مسئول انبار مصرفی",
+      "role": "warehouse",
+      "expert": null,
+      "warehouse": "انبار مصرفی"
+    }
+  ]
+}
