@@ -396,6 +396,7 @@ bash scripts/e2e_api_test.sh
 ```
 tadarokat/
 ├── README.md
+├── test_run.bat                  ← تست یک‌کلیک ویندوز
 ├── install.bat / install.sh      ← گام ۳
 ├── run.bat / run.sh              ← گام ۷
 ├── share.config.json             ← گام ۴
