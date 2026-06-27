@@ -90,35 +90,6 @@ def venv_python() -> Path:
     return py
 
 
-def ensure_pip_config() -> None:
-    """
-    Create global pip config to use Chabokan mirror permanently,
-    so the user never needs to configure anything manually.
-    """
-    mirror_url = "https://mirror2.chabokan.net/pypi/simple/"
-    mirror_host = "mirror2.chabokan.net"
-
-    if platform.system() == "Windows":
-        config_dir = Path(os.environ.get("APPDATA", "")) / "pip"
-        config_file = config_dir / "pip.ini"
-    else:
-        config_dir = Path.home() / ".pip"
-        config_file = config_dir / "pip.conf"
-
-    try:
-        config_dir.mkdir(parents=True, exist_ok=True)
-        content = (
-            "[global]\n"
-            f"index-url = {mirror_url}\n"
-            f"trusted-host = {mirror_host}\n"
-        )
-        config_file.write_text(content, encoding="utf-8")
-        log(f"[OK] Global pip mirror config created at {config_file}")
-    except Exception as e:
-        log(f"[WARN] Could not create global pip config: {e}")
-        log("[WARN] The mirror will still be used during this script execution.")
-
-
 def ensure_share_config() -> Path:
     """Test mode: project root is the share folder; input.xlsx lives in root."""
     cfg_path = ROOT / "share.config.json"
@@ -155,13 +126,7 @@ def ensure_share_config() -> Path:
 
 
 def run_install() -> None:
-    """
-    Install dependencies with Chabokan mirror.
-    Also ensures the global pip config is set for future manual installs.
-    """
-    # Make pip always use the mirror, even outside this script
-    ensure_pip_config()
-
+    """Install dependencies using default PyPI (no mirror)."""
     vpy = ROOT / ".venv" / ("Scripts/python.exe" if platform.system() == "Windows" else "bin/python")
     if (ROOT / ".installed").exists() and vpy.exists():
         try:
@@ -175,10 +140,10 @@ def run_install() -> None:
         except subprocess.CalledProcessError:
             pass
 
-    # Environment variables for the mirror (effective during this process tree)
+    # Only timeouts and retry settings to prevent hanging on slow network
     pip_env = {
-        "PIP_INDEX_URL": "https://mirror2.chabokan.net/pypi/simple/",
-        "PIP_TRUSTED_HOST": "mirror2.chabokan.net",
+        "PIP_DEFAULT_TIMEOUT": "120",
+        "PIP_RETRIES": "5",
     }
 
     if platform.system() == "Windows":
