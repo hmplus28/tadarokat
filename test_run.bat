@@ -27,6 +27,10 @@ echo   Tadarokat - ONE-CLICK TEST
 echo ==========================================
 echo.
 
+REM Use Chabakan mirror for all pip installs
+set PIP_INDEX_URL=https://mirror2.chabokan.net/pypi/simple/
+set PIP_TRUSTED_HOST=mirror2.chabokan.net
+
 %PY_LAUNCHER% scripts\test_setup.py --fresh --no-server
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (
