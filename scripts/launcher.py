@@ -54,10 +54,17 @@ def _needs_install() -> bool:
 def _run_install() -> None:
     print("→ نصب اولیه ...")
     if platform.system() == "Windows":
-        cmd = ["cmd", "/c", str(ROOT / "install.bat"), "/quiet"]
-    else:
-        cmd = ["bash", str(ROOT / "install.sh"), "--quiet"]
-    subprocess.run(cmd, cwd=str(ROOT), check=True)
+        script = str(ROOT / "scripts" / "install_windows.py")
+        for cmd in (["py", "-3"], ["python"], ["python3"]):
+            try:
+                subprocess.run([*cmd, "--version"], capture_output=True, check=True)
+                subprocess.run([*cmd, script, "--quiet"], cwd=str(ROOT), check=True)
+                return
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                continue
+        print("❌ Python یافت نشد — install.bat را اجرا کنید")
+        raise SystemExit(1)
+    subprocess.run(["bash", str(ROOT / "install.sh"), "--quiet"], cwd=str(ROOT), check=True)
 
 
 def main() -> None:

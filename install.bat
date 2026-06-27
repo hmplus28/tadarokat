@@ -1,50 +1,62 @@
 @echo off
-chcp 65001 >nul
-setlocal EnableDelayedExpansion
+REM نصب سامانه تدارکات — پنجره همیشه باز می‌ماند تا خطا دیده شود
+setlocal EnableExtensions
 cd /d "%~dp0"
 
-set QUIET=0
-if /I "%~1"=="/quiet" set QUIET=1
+chcp 65001 >nul 2>&1
 
-echo ══════════════════════════════════════════
-echo   سامانه تدارکات — نصب اولیه
-echo ══════════════════════════════════════════
-echo.
+set "QUIET_ARG=%~1"
+set "ERR=0"
 
-if not exist "share.config.json" (
-  copy share.config.example.json share.config.json >nul
-  echo ✓ share.config.json ساخته شد — مسیر share را تنظیم کنید.
+REM ── یافتن Python ──
+set "PY_LAUNCHER="
+where py >nul 2>&1 && (
+  py -3 --version >nul 2>&1 && set "PY_LAUNCHER=py -3"
+)
+if not defined PY_LAUNCHER (
+  where python >nul 2>&1 && (
+    python --version >nul 2>&1 && set "PY_LAUNCHER=python"
+  )
+)
+if not defined PY_LAUNCHER (
+  where python3 >nul 2>&1 && (
+    python3 --version >nul 2>&1 && set "PY_LAUNCHER=python3"
+  )
+)
+
+if not defined PY_LAUNCHER (
   echo.
+  echo [خطا] Python یافت نشد.
+  echo.
+  echo  1. از https://www.python.org/downloads/ نصب کنید
+  echo  2. هنگام نصب تیک "Add python.exe to PATH" را بزنید
+  echo  3. CMD را ببندید و دوباره install.bat را اجرا کنید
+  echo.
+  set ERR=1
+  goto :DONE
 )
 
-where py >nul 2>&1 && set PY=py -3 || set PY=python
-%PY% --version >nul 2>&1
+echo Python:
+%PY_LAUNCHER% --version
 if errorlevel 1 (
-  echo ❌ Python یافت نشد — python.org را نصب کنید
-  exit /b 1
+  echo [خطا] اجرای Python ناموفق
+  set ERR=1
+  goto :DONE
 )
+echo.
 
-if not exist ".venv" (
-  echo ایجاد محیط مجازی Python ...
-  %PY% -m venv .venv
-)
+REM ── نصب با اسکریپت پایتون (پیام خطای واضح) ──
+%PY_LAUNCHER% scripts\install_windows.py %QUIET_ARG%
+if errorlevel 1 set ERR=1
 
-call .venv\Scripts\activate.bat
-python -m pip install --upgrade pip -q
-python -m pip install -r backend\requirements.txt -q
-echo ✓ وابستگی‌های Python
-
-python scripts\build_db_template.py
-
-if not exist "frontend\vendor\tailwind.css" (
-  if exist "scripts\download_vendor.bat" call scripts\download_vendor.bat
+:DONE
+echo.
+if "%ERR%"=="1" (
+  echo ══════════════════════════════════════════
+  echo   نصب ناموفق — متن خطای بالا را بخوانید
+  echo ══════════════════════════════════════════
 ) else (
-  echo ✓ فایل‌های vendor
+  echo برای بستن این پنجره یک کلید بزنید...
 )
-
-echo %date% %time%> .installed
-echo.
-echo ✓ نصب کامل — اجرا: run.bat
-echo   راه‌اندازی share: scripts\init_share.bat
-echo.
-if "%QUIET%"=="0" pause
+pause
+exit /b %ERR%

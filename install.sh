@@ -56,14 +56,7 @@ echo "✓ وابستگی‌های Python"
 # ── ۳. پایگاه آماده share ──
 python scripts/build_db_template.py
 
-# ── ۴. فایل‌های آفلاین فرانت‌اند ──
-if [ ! -f "frontend/vendor/tailwind.css" ] && [ -f "scripts/download_vendor.sh" ]; then
-  bash scripts/download_vendor.sh
-else
-  echo "✓ فایل‌های vendor"
-fi
-
-# ── ۵. پوشه share ──
+# ── ۴. پوشه share (UI از CDN — دانلود vendor لازم نیست) ──
 SHARE_DIR="$(python -c "
 import json
 from pathlib import Path
