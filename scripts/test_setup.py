@@ -39,12 +39,45 @@ def fail(msg: str, code: int = 1) -> None:
     raise SystemExit(code)
 
 
-def run_cmd(cmd: list[str], *, label: str, cwd: Path | None = None) -> None:
-    log(f"-> {label}")
+def run_cmd(
+    cmd: list[str],
+    *,
+    label: str,
+    cwd: Path | None = None,
+    timeout: int = 600,
+    env: dict | None = None,
+) -> None:
+    """Run a command with live output, no stdin, and a timeout."""
+    log(f"-> {label}  [CMD: {' '.join(cmd)}]")
+
+    run_env = os.environ.copy()
+    if env:
+        run_env.update(env)
+
     try:
-        subprocess.run(cmd, cwd=str(cwd or ROOT), check=True)
-    except subprocess.CalledProcessError as exc:
-        fail(f"{label} failed (exit {exc.returncode})")
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(cwd or ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,
+            env=run_env,
+        )
+
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+
+        retcode = proc.wait(timeout=timeout)
+        if retcode != 0:
+            fail(f"{label} failed (exit {retcode})")
+
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        fail(f"{label} timed out after {timeout} seconds")
+    except Exception as e:
+        fail(f"{label} error: {e}")
 
 
 def venv_python() -> Path:
@@ -55,6 +88,35 @@ def venv_python() -> Path:
     if not py.exists():
         fail("Virtual env missing - install step failed")
     return py
+
+
+def ensure_pip_config() -> None:
+    """
+    Create global pip config to use Chabokan mirror permanently,
+    so the user never needs to configure anything manually.
+    """
+    mirror_url = "https://mirror2.chabokan.net/pypi/simple/"
+    mirror_host = "mirror2.chabokan.net"
+
+    if platform.system() == "Windows":
+        config_dir = Path(os.environ.get("APPDATA", "")) / "pip"
+        config_file = config_dir / "pip.ini"
+    else:
+        config_dir = Path.home() / ".pip"
+        config_file = config_dir / "pip.conf"
+
+    try:
+        config_dir.mkdir(parents=True, exist_ok=True)
+        content = (
+            "[global]\n"
+            f"index-url = {mirror_url}\n"
+            f"trusted-host = {mirror_host}\n"
+        )
+        config_file.write_text(content, encoding="utf-8")
+        log(f"[OK] Global pip mirror config created at {config_file}")
+    except Exception as e:
+        log(f"[WARN] Could not create global pip config: {e}")
+        log("[WARN] The mirror will still be used during this script execution.")
 
 
 def ensure_share_config() -> Path:
@@ -93,6 +155,13 @@ def ensure_share_config() -> Path:
 
 
 def run_install() -> None:
+    """
+    Install dependencies with Chabokan mirror.
+    Also ensures the global pip config is set for future manual installs.
+    """
+    # Make pip always use the mirror, even outside this script
+    ensure_pip_config()
+
     vpy = ROOT / ".venv" / ("Scripts/python.exe" if platform.system() == "Windows" else "bin/python")
     if (ROOT / ".installed").exists() and vpy.exists():
         try:
@@ -106,18 +175,34 @@ def run_install() -> None:
         except subprocess.CalledProcessError:
             pass
 
+    # Environment variables for the mirror (effective during this process tree)
+    pip_env = {
+        "PIP_INDEX_URL": "https://mirror2.chabokan.net/pypi/simple/",
+        "PIP_TRUSTED_HOST": "mirror2.chabokan.net",
+    }
+
     if platform.system() == "Windows":
         script = ROOT / "scripts" / "install_windows.py"
-        for cmd in (["py", "-3"], ["python"], ["python3"]):
+        for base_python in (["py", "-3"], ["python"], ["python3"]):
             try:
-                subprocess.run([*cmd, "--version"], capture_output=True, check=True)
-                run_cmd([*cmd, str(script), "--quiet"], label="Windows install")
+                subprocess.run([*base_python, "--version"], capture_output=True, check=True)
+                run_cmd(
+                    [*base_python, str(script), "--quiet"],
+                    label="Windows install",
+                    timeout=900,
+                    env=pip_env,
+                )
                 return
             except (subprocess.CalledProcessError, FileNotFoundError):
                 continue
         fail("Python not found for install")
     else:
-        run_cmd(["bash", str(ROOT / "install.sh"), "--quiet"], label="Linux install")
+        run_cmd(
+            ["bash", str(ROOT / "install.sh"), "--quiet"],
+            label="Linux install",
+            timeout=900,
+            env=pip_env,
+        )
 
 
 def reset_data(share: Path) -> None:
