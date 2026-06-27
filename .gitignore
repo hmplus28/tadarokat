@@ -2,6 +2,8 @@
 .tools/
 .installed
 share.config.json
+share.config.json.bak
+logs/
 share_users.seed.json
 **/share_users.seed.json
 __pycache__/

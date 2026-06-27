@@ -36,6 +36,17 @@ def _set_env_if_missing(key: str, value: str | None) -> None:
         os.environ[key] = value
 
 
+def resolve_config_path(path_str: str, base: Path | None = None) -> str:
+    """Resolve relative paths against project root (not process cwd)."""
+    root = base or BASE_DIR
+    p = Path(path_str).expanduser()
+    if not p.is_absolute():
+        p = (root / p).resolve()
+    else:
+        p = p.resolve()
+    return str(p)
+
+
 def apply_share_config() -> Dict[str, Any]:
     """متغیرهای محیطی را از share.config.json پر می‌کند (env اولویت دارد)."""
     cfg = load_share_config()
@@ -47,9 +58,9 @@ def apply_share_config() -> Dict[str, Any]:
     host = (cfg.get("host") or "127.0.0.1").strip()
 
     if shared:
-        _set_env_if_missing("TADAROKAT_SHARED_DATA", str(Path(shared).expanduser()))
+        _set_env_if_missing("TADAROKAT_SHARED_DATA", resolve_config_path(shared))
     if local:
-        _set_env_if_missing("TADAROKAT_LOCAL_DATA", str(Path(local).expanduser()))
+        _set_env_if_missing("TADAROKAT_LOCAL_DATA", resolve_config_path(local))
     elif not os.getenv("TADAROKAT_LOCAL_DATA"):
         _set_env_if_missing("TADAROKAT_LOCAL_DATA", str(default_local_data_dir()))
 

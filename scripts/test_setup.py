@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -57,24 +58,37 @@ def venv_python() -> Path:
 
 
 def ensure_share_config() -> Path:
+    """Test mode: project root is the share folder; input.xlsx lives in root."""
     cfg_path = ROOT / "share.config.json"
-    example = ROOT / "share.config.example.json"
-    if not cfg_path.exists():
-        if not example.exists():
-            fail("share.config.example.json not found")
-        data = json.loads(example.read_text(encoding="utf-8"))
-        data["shared_data_dir"] = "./data"
-        data["mode"] = "full"
-        data["host"] = "127.0.0.1"
-        data["port"] = 8000
-        cfg_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        log("[OK] Created share.config.json")
+    backup = ROOT / "share.config.json.bak"
+    test_cfg = {
+        "shared_data_dir": ".",
+        "local_data_dir": "",
+        "port": 8000,
+        "mode": "full",
+        "host": "127.0.0.1",
+    }
+
+    if cfg_path.exists():
+        try:
+            current = json.loads(cfg_path.read_text(encoding="utf-8"))
+            if current.get("shared_data_dir") != ".":
+                if not backup.exists():
+                    shutil.copy2(cfg_path, backup)
+                    log("[OK] Backed up share.config.json -> share.config.json.bak")
+        except (json.JSONDecodeError, OSError):
+            pass
     else:
-        log("[OK] share.config.json exists")
-    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-    share = Path(str(cfg.get("shared_data_dir") or "./data"))
-    if not share.is_absolute():
-        share = (ROOT / share).resolve()
+        log("[OK] Creating share.config.json for test")
+
+    cfg_path.write_text(json.dumps(test_cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    log("[OK] Test share: project root (.)")
+
+    share = ROOT.resolve()
+    os.environ["TADAROKAT_SHARED_DATA"] = str(share)
+    os.environ["TADAROKAT_MODE"] = "full"
+    os.environ["TADAROKAT_HOST"] = "127.0.0.1"
+    os.environ["TADAROKAT_PORT"] = "8000"
     return share
 
 
@@ -142,30 +156,19 @@ def init_database(share: Path) -> int:
 
 
 def find_excel_source() -> Path | None:
-    data = ROOT / "data"
-    for candidate in (
-        data / "input.xlsx",
-        data / "purchases.xlsx",
-    ):
-        if candidate.exists() and candidate.stat().st_size > 1000:
-            return candidate
-    for path in sorted(ROOT.glob("*.xlsx")):
-        if path.stat().st_size > 1000:
-            return path
+    candidate = ROOT / "input.xlsx"
+    if candidate.exists() and candidate.stat().st_size > 1000:
+        return candidate
     return None
 
 
 def setup_excel(share: Path) -> Path | None:
+    dest = share / "input.xlsx"
     src = find_excel_source()
     if not src:
-        log("[WARN] No Excel file found - skip import (place input.xlsx in data/)")
+        log("[WARN] No Excel file found - skip import (place input.xlsx in project root)")
         return None
-    dest = share / "input.xlsx"
-    if src.resolve() != dest.resolve():
-        shutil.copy2(src, dest)
-        log(f"[OK] Excel copied: {src.name} -> {dest}")
-    else:
-        log(f"[OK] Excel ready: {dest}")
+    log(f"[OK] Excel ready: {dest}")
     return dest
 
 

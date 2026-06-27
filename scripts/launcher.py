@@ -30,6 +30,15 @@ def _load_config() -> dict:
     return json.loads(cfg_path.read_text(encoding="utf-8"))
 
 
+def _resolve_share_path(path_str: str) -> str:
+    p = Path(path_str).expanduser()
+    if not p.is_absolute():
+        p = (ROOT / p).resolve()
+    else:
+        p = p.resolve()
+    return str(p)
+
+
 def _apply_env(cfg: dict) -> None:
     shared = str(cfg.get("shared_data_dir") or "").strip()
     local = str(cfg.get("local_data_dir") or "").strip()
@@ -38,9 +47,9 @@ def _apply_env(cfg: dict) -> None:
     port = str(int(cfg.get("port") or 8000))
 
     if shared:
-        os.environ.setdefault("TADAROKAT_SHARED_DATA", str(Path(shared).expanduser()))
+        os.environ.setdefault("TADAROKAT_SHARED_DATA", _resolve_share_path(shared))
     if local:
-        os.environ.setdefault("TADAROKAT_LOCAL_DATA", str(Path(local).expanduser()))
+        os.environ.setdefault("TADAROKAT_LOCAL_DATA", _resolve_share_path(local))
     os.environ.setdefault("TADAROKAT_MODE", mode)
     os.environ.setdefault("TADAROKAT_HOST", host)
     os.environ.setdefault("TADAROKAT_PORT", port)
