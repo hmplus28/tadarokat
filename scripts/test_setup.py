@@ -126,7 +126,7 @@ def ensure_share_config() -> Path:
 
 
 def run_install() -> None:
-    """Install dependencies using default PyPI (no mirror)."""
+    """Install dependencies using official PyPI (no mirror)."""
     vpy = ROOT / ".venv" / ("Scripts/python.exe" if platform.system() == "Windows" else "bin/python")
     if (ROOT / ".installed").exists() and vpy.exists():
         try:
@@ -140,10 +140,13 @@ def run_install() -> None:
         except subprocess.CalledProcessError:
             pass
 
-    # Only timeouts and retry settings to prevent hanging on slow network
+    # Force official PyPI and enable verbose output
     pip_env = {
         "PIP_DEFAULT_TIMEOUT": "120",
         "PIP_RETRIES": "5",
+        "PIP_VERBOSE": "1",                     # show full installation details
+        "PIP_INDEX_URL": "https://pypi.org/simple",   # official PyPI
+        "PIP_TRUSTED_HOST": "pypi.org",               # trust the host
     }
 
     if platform.system() == "Windows":
@@ -151,9 +154,10 @@ def run_install() -> None:
         for base_python in (["py", "-3"], ["python"], ["python3"]):
             try:
                 subprocess.run([*base_python, "--version"], capture_output=True, check=True)
+                # Remove --quiet to show all output
                 run_cmd(
-                    [*base_python, str(script), "--quiet"],
-                    label="Windows install",
+                    [*base_python, str(script)],
+                    label="Windows install (verbose)",
                     timeout=900,
                     env=pip_env,
                 )
@@ -163,8 +167,8 @@ def run_install() -> None:
         fail("Python not found for install")
     else:
         run_cmd(
-            ["bash", str(ROOT / "install.sh"), "--quiet"],
-            label="Linux install",
+            ["bash", str(ROOT / "install.sh")],
+            label="Linux install (verbose)",
             timeout=900,
             env=pip_env,
         )
@@ -190,21 +194,6 @@ def stage_test_seed(share: Path) -> None:
     log(f"[OK] Staged test users seed -> {dest}")
 
 
-def init_database(share: Path) -> int:
-    sys.path.insert(0, str(ROOT / "backend"))
-    from local_config import apply_share_config  # noqa: E402
-
-    apply_share_config()
-    from services.share_init_service import initialize_share  # noqa: E402
-
-    result = initialize_share(require_seed=True)
-    log(f"[OK] Database: {result['database_path']}")
-    log(f"[OK] Users in DB: {result['user_count']}")
-    for msg in result.get("messages") or []:
-        log(f"    - {msg}")
-    return int(result["user_count"])
-
-
 def find_excel_source() -> Path | None:
     candidate = ROOT / "input.xlsx"
     if candidate.exists() and candidate.stat().st_size > 1000:
@@ -218,25 +207,13 @@ def setup_excel(share: Path) -> Path | None:
     if not src:
         log("[WARN] No Excel file found - skip import (place input.xlsx in project root)")
         return None
-    log(f"[OK] Excel ready: {dest}")
+    # Copy if not already there or if source is newer
+    if not dest.exists() or src.stat().st_mtime > dest.stat().st_mtime:
+        shutil.copy2(src, dest)
+        log(f"[OK] Excel copied to {dest}")
+    else:
+        log(f"[OK] Excel already present: {dest}")
     return dest
-
-
-def import_excel() -> bool:
-    sys.path.insert(0, str(ROOT / "backend"))
-    from local_config import apply_share_config  # noqa: E402
-
-    apply_share_config()
-    from db.import_service import run_import  # noqa: E402
-
-    try:
-        result = run_import(None)
-        rows = result.get("row_count") or result.get("rows") or result.get("purchases")
-        log(f"[OK] Excel imported into DB (rows={rows})")
-        return True
-    except Exception as exc:
-        log(f"[WARN] Excel import skipped: {exc}")
-        return False
 
 
 def verify_logins(host: str, port: int) -> None:
@@ -328,7 +305,7 @@ def main() -> None:
     args = parser.parse_args()
 
     log("==========================================")
-    log("  Tadarokat - TEST SETUP")
+    log("  Tadarokat - TEST SETUP (VERBOSE)")
     log("==========================================")
     log("")
 
@@ -336,40 +313,64 @@ def main() -> None:
     share.mkdir(parents=True, exist_ok=True)
     (share / "logs").mkdir(exist_ok=True)
 
+    # 1. Install dependencies (with full pip logs, no mirror)
+    log("--- Starting installation (verbose output follows) ---")
     run_install()
     py = venv_python()
+    log("--- Installation complete ---")
+
+    # 2. Build DB template (runs in venv)
+    log("-> Building DB template...")
     run_cmd([str(py), str(ROOT / "scripts" / "build_db_template.py")], label="DB template")
 
+    # 3. Reset data if --fresh
     if args.fresh:
         reset_data(share)
 
-    db_path = share / "db_current.db"
-    need_seed = args.fresh or not db_path.exists()
-    if not need_seed:
-        sys.path.insert(0, str(ROOT / "backend"))
-        from local_config import apply_share_config  # noqa: E402
+    # 4. Always stage the test seed (will be used if no users exist)
+    stage_test_seed(share)
 
-        apply_share_config()
-        from db.connection import get_db_manager  # noqa: E402
-        from services.user_service import count_users_in_db  # noqa: E402
+    # 5. Initialize database and seed users (runs in venv)
+    log("-> Initializing database and seeding users...")
+    seed_script = """
+import sys
+sys.path.insert(0, 'backend')
+from local_config import apply_share_config
+apply_share_config()
+from services.share_init_service import initialize_share
+result = initialize_share(require_seed=True)
+print(f"Database: {result['database_path']}")
+print(f"Users in DB: {result['user_count']}")
+for msg in result.get('messages') or []:
+    print(f"    - {msg}")
+"""
+    run_cmd([str(py), "-c", seed_script], label="Initialize database with seed", timeout=120)
 
-        with get_db_manager().connect() as conn:
-            need_seed = count_users_in_db(conn) == 0
+    # 6. Import Excel if available and not skipped
+    if not args.no_import:
+        excel_path = setup_excel(share)
+        if excel_path:
+            log("-> Importing Excel data...")
+            import_script = """
+import sys
+sys.path.insert(0, 'backend')
+from local_config import apply_share_config
+apply_share_config()
+from db.import_service import run_import
+result = run_import(None)
+rows = result.get('row_count') or result.get('rows') or result.get('purchases')
+print(f"Excel imported into DB (rows={rows})")
+"""
+            run_cmd([str(py), "-c", import_script], label="Import Excel", timeout=300)
 
-    if need_seed:
-        stage_test_seed(share)
-        init_database(share)
-    else:
-        log("[OK] Database and users already exist (use --fresh to reset)")
-
-    if not args.no_import and setup_excel(share):
-        import_excel()
-
+    # 7. Read config for host/port
     cfg = json.loads((ROOT / "share.config.json").read_text(encoding="utf-8"))
     host = str(cfg.get("host") or "127.0.0.1")
     port = int(cfg.get("port") or 8000)
 
+    # 8. Verify logins (requires server running)
     if not args.no_verify:
+        log("-> Starting server for login verification...")
         proc = subprocess.Popen([str(py), str(ROOT / "scripts" / "launcher.py")], cwd=str(ROOT))
         try:
             wait_for_server(host, port)
@@ -381,6 +382,7 @@ def main() -> None:
             except subprocess.TimeoutExpired:
                 proc.kill()
 
+    # 9. If --no-server, print summary and exit
     if args.no_server:
         log("")
         log("==========================================")
@@ -393,6 +395,7 @@ def main() -> None:
         log("  Next:  run.bat  (Windows)  or  ./run.sh")
         return
 
+    # 10. Start the server
     start_server(host, port, args.open_browser)
 
 
