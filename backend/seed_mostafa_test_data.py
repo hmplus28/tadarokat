@@ -211,13 +211,13 @@ def main() -> None:
             payload, ISSUER, USERNAME, user=user
         )
         created.append(inq_num)
-        print(f"OK  استعلام {inq_num} — خرید {pn} — {sample['status_note']}")
+        print(f"OK  inquiry {inq_num} - purchase {pn} - {sample['status_note']}")
 
     invalidate_cache()
-    print(f"\nخلاصه: {len(created)} ایجاد شد، {len(skipped)} رد شد")
+    print(f"\nSummary: {len(created)} created, {len(skipped)} skipped")
     if created:
-        print("ورود: mostafa / mostafa123")
-        print("استعلام‌ها:", ", ".join(created))
+        print("Login: mostafa / mostafa123")
+        print("Inquiries:", ", ".join(created))
 
 
 if __name__ == "__main__":

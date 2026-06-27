@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""اجراکننده یکپارچه — ویندوز و لینوکس."""
+"""Unified launcher for Windows and Linux."""
 
 from __future__ import annotations
 
@@ -24,8 +24,8 @@ def _venv_python() -> Path:
 def _load_config() -> dict:
     cfg_path = ROOT / "share.config.json"
     if not cfg_path.exists():
-        print("❌ share.config.json یافت نشد.")
-        print("   cp share.config.example.json share.config.json")
+        print("[ERROR] share.config.json not found.")
+        print("        Copy share.config.example.json to share.config.json")
         raise SystemExit(1)
     return json.loads(cfg_path.read_text(encoding="utf-8"))
 
@@ -52,7 +52,7 @@ def _needs_install() -> bool:
 
 
 def _run_install() -> None:
-    print("→ نصب اولیه ...")
+    print("-> Running first-time install...")
     if platform.system() == "Windows":
         script = str(ROOT / "scripts" / "install_windows.py")
         for cmd in (["py", "-3"], ["python"], ["python3"]):
@@ -62,7 +62,7 @@ def _run_install() -> None:
                 return
             except (subprocess.CalledProcessError, FileNotFoundError):
                 continue
-        print("❌ Python یافت نشد — install.bat را اجرا کنید")
+        print("[ERROR] Python not found - run install.bat first")
         raise SystemExit(1)
     subprocess.run(["bash", str(ROOT / "install.sh"), "--quiet"], cwd=str(ROOT), check=True)
 
@@ -79,10 +79,10 @@ def main() -> None:
     shared = os.environ.get("TADAROKAT_SHARED_DATA", "")
 
     print("")
-    print("🚀 سامانه تدارکات")
-    print(f"   آدرس:  http://{host}:{port}")
-    print(f"   share: {shared}")
-    print("   راه‌اندازی اول share: scripts/init_share")
+    print("Tadarokat server")
+    print(f"  URL:   http://{host}:{port}")
+    print(f"  Share: {shared}")
+    print("  First-time setup: scripts/init_share")
     print("")
 
     os.chdir(ROOT / "backend")

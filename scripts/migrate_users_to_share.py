@@ -24,7 +24,7 @@ from services.user_service import count_users_in_db  # noqa: E402
 def main() -> None:
     src = ROOT / "data" / "users.json"
     if not src.exists():
-        print("users.json یافت نشد")
+        print("[ERROR] users.json not found")
         raise SystemExit(1)
 
     users = json.loads(src.read_text(encoding="utf-8"))
@@ -34,7 +34,7 @@ def main() -> None:
     with mgr.connect(write=True) as conn:
         conn.executescript(USERS_DDL)
         if count_users_in_db(conn) > 0:
-            print("کاربران از قبل در DB هستند — رد شد")
+            print("[OK] Users already in DB - skipped")
             return
         for u in users:
             conn.execute(
@@ -58,7 +58,7 @@ def main() -> None:
         mgr._set_meta(conn, "users_migrated_from_json", now)
         mgr.bump_version(conn)
 
-    print(f"✓ {len(users)} کاربر (hash) به DB منتقل شد")
+    print(f"[OK] Migrated {len(users)} user(s) (hash only) to DB")
 
 
 if __name__ == "__main__":

@@ -10,10 +10,10 @@ mkdir -p "$VENDOR" "$FONTS"
 download() {
   local url="$1" dest="$2"
   if [ -f "$dest" ] && [ -s "$dest" ]; then
-    echo "✓ $(basename "$dest")"
+    echo "[OK] $(basename "$dest")"
     return 0
   fi
-  echo "↓ $(basename "$dest")"
+  echo "[DOWN] $(basename "$dest")"
   curl -fsSL "$url" -o "$dest"
 }
 
@@ -87,7 +87,7 @@ if [ ! -f "$TW_BIN" ]; then
   case "$ARCH" in
     x86_64) TW_URL="https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.1/tailwindcss-linux-x64" ;;
     aarch64|arm64) TW_URL="https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.1/tailwindcss-linux-arm64" ;;
-    *) echo "⚠ معماری $ARCH — tailwind از CDN در نصب بعدی ساخته می‌شود"; TW_URL="" ;;
+    *) echo "[WARN] Arch $ARCH - tailwind will use CDN fallback"; TW_URL="" ;;
   esac
   if [ -n "$TW_URL" ]; then
     curl -fsSL "$TW_URL" -o "$TW_BIN"
@@ -96,12 +96,12 @@ if [ ! -f "$TW_BIN" ]; then
 fi
 
 if [ -x "$TW_BIN" ]; then
-  echo "⚙ ساخت tailwind.css (کامل + ریسپانسیو) ..."
+  echo "-> Building tailwind.css ..."
   "$TW_BIN" -c "$ROOT/frontend/tailwind.config.js" -i "$TW_SRC" -o "$TW_OUT" --minify
-  echo "✓ tailwind.css ($(wc -c < "$TW_OUT" | tr -d ' ') bytes)"
+  echo "[OK] tailwind.css ($(wc -c < "$TW_OUT" | tr -d ' ') bytes)"
 else
-  echo "⚠ tailwind.css ساخته نشد — اتصال اینترنت یا معماری را بررسی کنید"
+  echo "[WARN] tailwind.css build failed - check network or CPU arch"
 fi
 
 echo ""
-echo "✓ vendor assets در $VENDOR"
+echo "[OK] vendor assets in $VENDOR"

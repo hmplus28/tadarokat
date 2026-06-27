@@ -15,4 +15,4 @@ powershell -NoProfile -Command ^
   "Invoke-WebRequest -Uri 'https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir-Regular.woff2' -OutFile \"$f\Vazir-Regular.woff2\";" ^
   "Invoke-WebRequest -Uri 'https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir-Bold.woff2' -OutFile \"$f\Vazir-Bold.woff2\";"
 
-echo ✓ vendor assets
+echo [OK] vendor assets downloaded

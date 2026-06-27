@@ -28,7 +28,7 @@ def build() -> Path:
         conn.executescript(USERS_DDL)
         mgr._set_meta(conn, "template_version", "1")
         mgr._set_meta(conn, "share_initialized", "0")
-    print(f"✓ {TEMPLATE_DB}")
+    print(f"[OK] {TEMPLATE_DB}")
     return TEMPLATE_DB
 
 

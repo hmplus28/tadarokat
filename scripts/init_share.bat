@@ -1,19 +1,18 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0\.."
-chcp 65001 >nul 2>&1
 
 set "PY=.venv\Scripts\python.exe"
 if not exist "%PY%" (
   echo.
-  echo [خطا] ابتدا install.bat را اجرا کنید.
+  echo [ERROR] Run install.bat first.
   echo.
   pause
   exit /b 1
 )
 
 echo.
-echo راه‌اندازی share و کاربران...
+echo Initializing share and users...
 echo.
 
 "%PY%" scripts\init_share.py %*
@@ -21,9 +20,9 @@ set "RC=%ERRORLEVEL%"
 
 echo.
 if not "%RC%"=="0" (
-  echo [خطا] init_share ناموفق — فایل share_users.seed.json را در پوشه data بررسی کنید.
+  echo [ERROR] init_share failed - check share_users.seed.json in data folder.
 ) else (
-  echo برای بستن یک کلید بزنید...
+  echo Press any key to close...
 )
-pause >nul
+pause
 exit /b %RC%

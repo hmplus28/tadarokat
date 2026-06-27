@@ -70,7 +70,7 @@ def _load_seed_users(seed_path: Path) -> List[Dict[str, Any]]:
     data = json.loads(seed_path.read_text(encoding="utf-8"))
     users = data.get("users") if isinstance(data, dict) else data
     if not isinstance(users, list) or not users:
-        raise ValueError("فایل seed باید آرایه users داشته باشد")
+        raise ValueError("Seed file must contain a non-empty 'users' array")
     return users
 
 
@@ -92,9 +92,9 @@ def seed_users_from_file(seed_path: Path, *, remove_after: bool = True) -> int:
             name = str(item.get("name") or "").strip()
             role = str(item.get("role") or "expert").strip()
             if not username or not password or not name:
-                raise ValueError(f"کاربر ناقص در seed: {item}")
+                raise ValueError(f"Incomplete user in seed: {item}")
             if password in PLACEHOLDER_PASSWORDS:
-                raise ValueError(f"رمز کاربر {username} هنوز تنظیم نشده (CHANGE_ME)")
+                raise ValueError(f"Password for user '{username}' is still a placeholder (CHANGE_ME)")
 
             conn.execute(
                 """
@@ -143,15 +143,15 @@ def initialize_share(*, require_seed: bool = True) -> Dict[str, Any]:
     if user_count == 0:
         if not seed_path:
             msg = (
-                f"کاربری در DB نیست. فایل {SEED_FILENAME} را در share قرار دهید "
-                f"(نمونه: share_users.seed.example.json) و دوباره init_share را اجرا کنید."
+                f"No users in DB. Place {SEED_FILENAME} in the share folder "
+                f"(see share_users.seed.example.json) and run init_share again."
             )
             if require_seed:
                 raise FileNotFoundError(msg)
             messages.append(msg)
         else:
             seeded = seed_users_from_file(seed_path, remove_after=True)
-            messages.append(f"{seeded} کاربر از seed وارد شد — فایل seed حذف شد.")
+            messages.append(f"Imported {seeded} user(s) from seed - seed file removed.")
 
     return {
         "ok": True,

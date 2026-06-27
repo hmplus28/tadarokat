@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Import روزانه — روی یک ماشین مرکزی یا Task Scheduler ویندوز اجرا شود
+# Daily Excel import - run on one central machine or Windows Task Scheduler
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 if [ ! -f "share.config.json" ]; then
-  echo "❌ share.config.json یافت نشد — مسیر share را تنظیم کنید."
+  echo "[ERROR] share.config.json not found - configure share path first."
   exit 1
 fi
 
@@ -14,7 +14,4 @@ if [ -d ".venv" ]; then
   source .venv/bin/activate
 fi
 
-export TADAROKAT_MODE=import
-export TADAROKAT_STORAGE=sqlite
-
-python scripts/import_daily.py "$@"
+exec python scripts/import_daily.py "$@"

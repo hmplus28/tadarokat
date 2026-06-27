@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""راه‌اندازی اولیه share — یک بار توسط IT."""
+"""One-time share setup - run once by IT."""
 
 from __future__ import annotations
 
@@ -20,18 +20,18 @@ def main() -> None:
     try:
         result = initialize_share(require_seed=True)
     except FileNotFoundError as exc:
-        print(f"❌ {exc}")
+        print(f"[ERROR] {exc}")
         raise SystemExit(1) from exc
     except ValueError as exc:
-        print(f"❌ {exc}")
+        print(f"[ERROR] {exc}")
         raise SystemExit(1) from exc
 
-    print("✓ share آماده شد")
+    print("[OK] Share initialized")
     print(f"  DB: {result['database_path']}")
-    print(f"  کاربران: {result['user_count']}")
+    print(f"  Users: {result['user_count']}")
     for msg in result.get("messages") or []:
-        print(f"  • {msg}")
-    print("  ⚠ رمز seed فقط یک‌بار در فایل بود — اکنون حذف شده. رمزها را در جای امن نگه دارید.")
+        print(f"  - {msg}")
+    print("  [NOTE] Seed file was removed. Keep passwords in a safe place.")
 
 
 if __name__ == "__main__":

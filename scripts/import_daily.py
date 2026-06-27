@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Import daily Excel into shared SQLite DB")
-    parser.add_argument("--input", help="مسیر input.xlsx (اختیاری)")
+    parser.add_argument("--input", help="Path to input.xlsx (optional)")
     args = parser.parse_args()
 
     from db.import_service import run_import
