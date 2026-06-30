@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>سامانه تدارکات</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260629a">
+  <link rel="stylesheet" href="/static/css/custom.css?v=20260629a">
+  <link rel="stylesheet" href="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.css">
+</head>
+<body>
+
+<!-- ========== LOGIN ========== -->
+<div id="loginPage" class="login-bg min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-[420px] fade-in">
+    <div class="glass rounded-3xl p-8 md:p-10 text-white">
+      <div class="text-center mb-8">
+        <div class="w-14 h-14 rounded-2xl bg-indigo-500/30 flex items-center justify-center mx-auto mb-5 text-2xl ring-1 ring-white/20">⚡</div>
+        <h1 class="text-2xl font-bold tracking-tight">سامانه تدارکات</h1>
+        <p class="text-indigo-200/80 text-sm mt-2">مدیریت خرید · استعلام · گزارش‌گیری</p>
+      </div>
+
+      <div id="serverWarning" class="hidden mb-4 p-3 rounded-xl bg-red-500/20 border border-red-400/30 text-red-200 text-xs text-center">
+        برای ورود ابتدا سامانه را اجرا کنید:<br><strong dir="ltr">./run.sh</strong> یا <strong dir="ltr">run.bat</strong>
+      </div>
+      <div id="setupWarning" class="hidden mb-4 p-3 rounded-xl bg-amber-500/20 border border-amber-400/30 text-amber-100 text-xs"></div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs text-indigo-200 mb-1.5 block">نام کاربری</label>
+          <input id="username" type="text" class="input !bg-white !border-0 !text-slate-900" placeholder="admin" autocomplete="username">
+        </div>
+        <div>
+          <label class="text-xs text-indigo-200 mb-1.5 block">رمز عبور</label>
+          <input id="password" type="password" class="input !bg-white !border-0 !text-slate-900" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <p id="loginError"></p>
+        <button id="loginBtn" onclick="login()" class="btn btn-primary w-full !py-3.5 !rounded-xl">ورود به سامانه</button>
+      </div>
+
+      <p class="text-center text-indigo-300/60 text-xs mt-6">
+        اولین اجرا: <span dir="ltr">share.config.json</span> و <span dir="ltr">scripts/init_share</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== APP ========== -->
+<div id="appPage" class="hidden min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar w-[270px] shrink-0 flex flex-col text-sm">
+    <div class="p-5 border-b border-white/5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-lg">📦</div>
+        <div>
+          <p class="font-bold text-white">تدارکات</p>
+          <p class="text-[11px] text-slate-500">نسخه ۲.۰</p>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto p-3 space-y-1">
+      <p class="nav-section-label text-[10px] uppercase tracking-widest text-slate-600 px-3 py-2">اصلی</p>
+      <button class="nav-link active not-warehouse" data-view="dashboard">
+        <span>📊</span><span>داشبورد</span>
+      </button>
+      <button class="nav-link not-warehouse" data-view="requests">
+        <span>📋</span><span>درخواست‌های خرید</span>
+        <span id="badgeTotal" class="mr-auto bg-orange-500/80 text-white text-[10px] px-1.5 py-0.5 rounded-full">0</span>
+      </button>
+
+      <div id="filterBar" class="px-2 py-2 flex flex-wrap gap-1.5 not-warehouse">
+        <button class="filter-chip active" data-filter="">همه</button>
+        <button class="filter-chip" data-filter="purchase">فعال</button>
+        <button class="filter-chip manager-inquiry-chip" data-filter="inquiry">دارای استعلام</button>
+        <button class="filter-chip expert-inquiry-chip hidden" data-filter="no_inquiry">بدون استعلام</button>
+        <button class="filter-chip" data-filter="returned">معلق</button>
+        <button class="filter-chip" data-filter="closed">بسته</button>
+      </div>
+
+      <p id="processNavHeader" class="nav-section-label text-[10px] uppercase tracking-widest text-slate-600 px-3 py-2 mt-3 not-warehouse">فرآیند</p>
+      <button class="nav-link expert-only hidden" data-view="requests" data-default-filter="no_inquiry"><span>📄</span><span>صدور استعلام</span></button>
+      <button class="nav-link not-warehouse not-expert" data-view="inquiries"><span>🔍</span><span>استعلام‌ها</span></button>
+      <button class="nav-link expert-only hidden" data-view="my_inquiries"><span>📨</span><span>استعلام‌های من</span></button>
+      <button class="nav-link manager-only hidden" data-view="inquiry_review"><span>⚖️</span><span>بررسی استعلام‌ها</span></button>
+      <button class="nav-link not-warehouse" data-view="orders"><span>📝</span><span>دستور خرید</span></button>
+      <button class="nav-link not-warehouse" data-view="deliveries"><span>🚚</span><span>تحویل‌ها</span></button>
+      <button class="nav-link warehouse-only hidden" data-view="warehouse_dashboard"><span>📊</span><span>گزارش انبار</span></button>
+      <button class="nav-link warehouse-only hidden" data-view="warehouse_purchases"><span>📦</span><span>وضعیت خریدهای ثبت‌شده</span></button>
+      <button class="nav-link warehouse-only hidden" data-view="warehouse_lookup"><span>🔎</span><span>استعلام کالا</span></button>
+      <button class="nav-link warehouse-only hidden" data-view="warehouse_deliveries"><span>🚚</span><span>تحویل‌های انبار</span></button>
+      <button class="nav-link warehouse-only hidden" data-view="notifications"><span>🔔</span><span>اعلان‌ها</span><span id="badgeNotif" class="mr-auto bg-red-500/80 text-white text-[10px] px-1.5 py-0.5 rounded-full hidden">0</span></button>
+
+      <p id="reportsNavHeader" class="nav-section-label text-[10px] uppercase tracking-widest text-slate-600 px-3 py-2 mt-3 not-warehouse">گزارشات</p>
+      <button class="nav-link expert-only hidden" data-view="report_my"><span>📋</span><span>گزارش من</span></button>
+      <button class="nav-link not-warehouse not-expert" data-view="report_purchase"><span>📈</span><span>گزارش خرید</span></button>
+      <button class="nav-link manager-only hidden" data-view="report_expert"><span>👤</span><span>گزارش کارشناس</span></button>
+      <button class="nav-link manager-only hidden" data-view="report_duration"><span>⏱️</span><span>مدت زمان مراحل</span></button>
+      <button class="nav-link not-warehouse not-expert" data-view="report_reorder"><span>⚠️</span><span>نقطه سفارش</span></button>
+
+      <div id="adminSection" class="hidden">
+        <p class="text-[10px] uppercase tracking-widest text-slate-600 px-3 py-2 mt-3">مدیریت</p>
+        <button class="nav-link" data-view="users"><span>👥</span><span>کاربران</span></button>
+        <button class="nav-link" data-view="settings"><span>⚙️</span><span>پنل سیستم</span></button>
+        <button class="nav-link" data-view="history"><span>📜</span><span>تاریخچه ویرایش</span></button>
+      </div>
+    </nav>
+
+    <div class="p-4 border-t border-white/5">
+      <div class="flex items-center gap-3 mb-3">
+        <div id="userAvatar" class="w-9 h-9 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm">م</div>
+        <div class="min-w-0">
+          <p id="userLabel" class="text-white text-sm font-medium truncate">—</p>
+          <p id="userRole" class="text-slate-500 text-[11px]">—</p>
+        </div>
+      </div>
+      <button onclick="openChangePasswordModal()" class="btn btn-ghost w-full !text-slate-300 !text-xs mb-2">🔑 تغییر رمز عبور</button>
+      <button onclick="logout()" class="btn btn-ghost w-full !text-red-400 !border-red-500/20 !text-xs">خروج از حساب</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 min-w-0 flex flex-col">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200/80 px-5 py-4 flex flex-wrap items-center gap-4 justify-between sticky top-0 z-20">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSidebar()" class="md:hidden btn btn-ghost !p-2">☰</button>
+        <div>
+          <h1 id="pageTitle" class="text-lg font-bold text-slate-900">داشبورد</h1>
+          <p id="pageSubtitle" class="text-xs text-slate-400 mt-0.5">نمای کلی</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+        <input id="searchInput" type="text" placeholder="جستجو سریع..." class="input !w-full sm:!w-56 !py-2.5">
+        <div id="advFilters" class="hidden flex flex-wrap items-center gap-2">
+          <select id="filterExpert" class="input !w-auto !py-2 !text-xs" onchange="applyAdvFilters()">
+            <option value="">همه کارشناسان</option>
+          </select>
+          <select id="filterInquiryStatus" class="input !w-auto !py-2 !text-xs hidden" onchange="applyAdvFilters()">
+            <option value="">همه وضعیت‌ها</option>
+            <option value="در انتظار بررسی مدیر">در انتظار</option>
+            <option value="تایید شده">تایید شده</option>
+            <option value="رد شده">رد شده</option>
+          </select>
+          <select id="filterWarehouse" class="input !w-auto !py-2 !text-xs hidden" onchange="applyAdvFilters()">
+            <option value="">همه انبارها</option>
+            <option value="انبار مصرفی">انبار مصرفی</option>
+            <option value="نت تاسیسات">نت تاسیسات</option>
+            <option value="ابنیه">ابنیه</option>
+          </select>
+          <select id="filterUrgency" class="input !w-auto !py-2 !text-xs hidden" onchange="applyAdvFilters()">
+            <option value="">همه اولویت‌ها</option>
+            <option value="فوری">فوری</option>
+            <option value="خیلی فوری">خیلی فوری</option>
+            <option value="عادی">عادی</option>
+          </select>
+          <select id="filterPurchaseType" class="input !w-auto !py-2 !text-xs hidden" onchange="applyAdvFilters()">
+            <option value="">همه انواع</option>
+            <option value="استعلامی">استعلامی</option>
+            <option value="کارپردازی">کارپردازی</option>
+          </select>
+        </div>
+        <button onclick="doSearch()" class="btn btn-primary !py-2.5">جستجو</button>
+        <button onclick="clearSearch()" class="btn btn-ghost !py-2.5" title="پاک کردن">✕</button>
+        <button id="btnRefreshData" onclick="refreshDataFromDb()" class="btn btn-ghost !py-2.5 !text-xs" title="دریافت آخرین داده از پایگاه share">🔄 آخرین داده</button>
+        <button id="btnExportExcel" onclick="exportCurrentViewExcel()" class="btn btn-ghost !py-2.5 hidden" title="خروجی اکسل">📊 اکسل</button>
+      </div>
+    </header>
+
+    <!-- Stats Row -->
+    <section id="statsRow" class="px-5 py-4 grid grid-cols-2 lg:grid-cols-5 gap-3 not-warehouse">
+      <div class="stat-card"><p class="text-xs text-slate-500">درخواست خرید</p><p id="statTotal" class="text-2xl font-bold text-slate-800 mt-1">۰</p></div>
+      <div class="stat-card"><p class="text-xs text-slate-500">فعال</p><p id="statActive" class="text-2xl font-bold text-indigo-600 mt-1">۰</p></div>
+      <div class="stat-card"><p class="text-xs text-slate-500">استعلام</p><p id="statInquiry" class="text-2xl font-bold text-violet-600 mt-1">۰</p></div>
+      <div class="stat-card"><p class="text-xs text-slate-500">معلق</p><p id="statPending" class="text-2xl font-bold text-amber-600 mt-1">۰</p></div>
+      <div class="stat-card col-span-2 lg:col-span-1"><p class="text-xs text-slate-500">بسته شده</p><p id="statClosed" class="text-2xl font-bold text-emerald-600 mt-1">۰</p></div>
+    </section>
+
+    <p id="statsMeta" class="px-5 text-[11px] text-slate-400 -mt-2 mb-2 not-warehouse">آخرین بروزرسانی: <span id="lastUpdate">—</span> · <span id="badgePurchase">۰</span> درخواست فعال · <span id="badgeLines">۰</span> قلم</p>
+
+    <!-- Warehouse dashboard / report -->
+    <section id="warehouseDashboardSection" class="hidden px-5 pb-6 fade-in">
+      <p id="whDashboardError" class="text-red-500 text-sm mb-3 hidden"></p>
+      <div id="warehouseKpiRow" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2"></div>
+      <p id="whDashboardMeta" class="text-[11px] text-slate-400 mb-3">گزارش انبار</p>
+      <p class="text-sm text-slate-600 mb-3">وضعیت خریدهای ثبت‌شده — <strong>فقط انبار شما</strong></p>
+      <div id="whStageCards" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-4"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">روند ثبت خرید (ماهانه)</h3><div class="h-48"><canvas id="chartWhTrend"></canvas></div></div>
+        <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">آخرین خریدهای ثبت‌شده</h3><div id="whRecentList" class="text-sm max-h-48 overflow-y-auto space-y-2"></div></div>
+      </div>
+      <div class="chart-box mb-4"><h3 class="font-bold text-sm mb-3 text-slate-700">توزیع مراحل</h3><div class="h-52 max-w-xl"><canvas id="chartWhStage"></canvas></div></div>
+      <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div class="px-4 py-3 border-b bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+          <h3 class="font-bold text-sm text-slate-800">جدول کلی خریدهای ثبت‌شده</h3>
+          <span id="whReportCount" class="text-xs text-slate-500">۰ ردیف</span>
+        </div>
+        <div class="px-4 py-3 border-b flex flex-wrap items-center gap-2 bg-white">
+          <input id="whFilterSearch" type="text" class="input !w-full sm:!w-48 !py-2 !text-xs" placeholder="جستجو در جدول...">
+          <select id="whFilterStage" class="input !w-auto !py-2 !text-xs" onchange="applyWhReportFilters()">
+            <option value="">همه مراحل</option>
+          </select>
+          <select id="whFilterExpert" class="input !w-auto !py-2 !text-xs" onchange="applyWhReportFilters()">
+            <option value="">همه کارشناسان</option>
+          </select>
+          <button type="button" onclick="applyWhReportFilters()" class="btn btn-primary !py-2 !text-xs">اعمال</button>
+          <button type="button" onclick="clearWhReportFilters()" class="btn btn-ghost !py-2 !text-xs">پاک کردن</button>
+        </div>
+        <div class="table-wrap !max-h-[28rem]">
+          <table class="data-table !text-xs">
+            <thead><tr id="whReportTableHead">
+              <th>شماره استعلام</th><th>شماره خرید</th><th>کالا</th><th>کد</th>
+              <th>مرحله فعلی</th><th>تاریخ</th><th>کارشناس</th><th>مراحل</th>
+            </tr></thead>
+            <tbody id="whReportTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Warehouse product lookup -->
+    <section id="warehouseLookupSection" class="hidden px-5 pb-6 fade-in">
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 max-w-4xl mb-4">
+        <h3 class="font-bold text-slate-900 mb-1">استعلام کالا</h3>
+        <p class="text-xs text-slate-500 mb-4">بر اساس <strong>کد قلم خریدنی</strong> و <strong>عنوان کالا</strong> — درخواست‌های ثبت قلم و آخرین خریدهای انبار شما</p>
+        <div class="grid sm:grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="text-xs text-slate-500">کد قلم خریدنی</label>
+            <input id="whProductCode" class="input mt-1" placeholder="مثلاً 12345">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">عنوان کالا</label>
+            <input id="whProductTitle" class="input mt-1" placeholder="بخشی از نام کالا">
+          </div>
+        </div>
+        <button type="button" onclick="searchWarehouseProduct()" class="btn btn-primary">جستجو</button>
+        <p id="whLookupError" class="text-red-500 text-sm mt-2 hidden"></p>
+      </div>
+      <div id="whLookupResult" class="space-y-4 max-w-5xl"></div>
+    </section>
+
+    <!-- Purchase Report -->
+    <section id="purchaseReportSection" class="hidden px-5 pb-6 fade-in">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h3 class="font-bold text-slate-800">گزارش خرید</h3>
+          <p id="purchaseReportNote" class="text-[11px] text-slate-500 mt-0.5">اولویت و نوع خرید از تغییرات پنل</p>
+        </div>
+        <span id="purchaseReportCount" class="text-xs text-slate-500">۰ قلم</span>
+      </div>
+      <div id="purchaseReportGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- Expert Report -->
+    <section id="expertReportSection" class="hidden px-5 pb-6 fade-in space-y-4">
+      <p id="expertReportNote" class="text-[11px] text-slate-500">بر اساس داده پنل — استعلام، دستور و تحویل</p>
+      <div id="expertFinancialRow" class="hidden grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+      <div id="expertMyKpiRow" class="hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"></div>
+      <div id="expertMyChartsRow" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <div id="expertMyExcelHint" class="hidden bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 text-sm text-indigo-800"></div>
+      <div id="expertSummaryBlock" class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div class="px-4 py-3 border-b bg-slate-50"><h3 id="expertSummaryTitle" class="font-bold text-sm">خلاصه کارشناسان</h3></div>
+        <div class="table-wrap report-table-wrap">
+          <table class="data-table report-data-table !text-xs">
+            <thead id="expertSummaryHead"></thead>
+            <tbody id="expertSummaryBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="expertDetailBlock" class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div class="px-4 py-3 border-b bg-slate-50 flex justify-between items-center">
+          <h3 id="expertDetailTitle" class="font-bold text-sm">جزئیات موارد هر کارشناس</h3>
+          <span id="expertDetailCount" class="text-xs text-slate-500">۰ ردیف</span>
+        </div>
+        <div class="table-wrap report-table-wrap">
+          <table class="data-table report-data-table !text-xs">
+            <thead id="expertDetailHead"></thead>
+            <tbody id="expertDetailBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="dashboardSection" class="px-5 pb-6 fade-in">
+      <div id="dashFilterBar" class="hidden manager-only mb-3 flex flex-wrap items-center gap-2">
+        <label class="text-xs text-slate-500">فیلتر داشبورد:</label>
+        <select id="dashFilterExpert" class="input !w-auto !py-2 !text-xs" onchange="applyDashFilter()">
+          <option value="">همه کارشناسان</option>
+        </select>
+      </div>
+      <div id="kpiRow" class="hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 mb-4"></div>
+      <div id="dashboardExpertPanel" class="hidden">
+        <p class="text-sm text-slate-600 mb-1">میانگین مدت مراحل — <strong>فقط موارد ارجاع‌شده به شما</strong></p>
+        <p class="text-[10px] text-slate-400 mb-3">واحد: <strong>روز تقویمی</strong> — فاصله بین تاریخ ثبت مراحل در پنل</p>
+        <div id="expertStageCards" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">روند فعالیت (تعداد)</h3><div class="h-48"><canvas id="chartExpertTrend"></canvas></div></div>
+          <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">آخرین موارد من</h3><div id="expertRecentItems" class="text-sm max-h-48 overflow-y-auto space-y-2"></div></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">وضعیت درخواست‌های من</h3><div class="h-52"><canvas id="chartStatus"></canvas></div></div>
+          <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">اولویت‌ها</h3><div id="urgencyList"></div></div>
+        </div>
+      </div>
+      <div id="dashboardManagerPanel">
+        <div id="managerFilteredTimeline" class="hidden mb-4"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div class="stat-card text-center"><p class="text-sm text-slate-500">کل درخواست‌ها</p><p id="dashTotal" class="text-3xl font-bold text-indigo-600 mt-2">۰</p></div>
+          <div class="stat-card text-center"><p class="text-sm text-slate-500">در جریان</p><p id="dashActive" class="text-3xl font-bold text-blue-600 mt-2">۰</p></div>
+          <div class="stat-card text-center"><p class="text-sm text-slate-500">بسته شده</p><p id="dashClosed" class="text-3xl font-bold text-emerald-600 mt-2">۰</p></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">وضعیت درخواست‌ها</h3><div class="h-52"><canvas id="chartStatusMgr"></canvas></div></div>
+          <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">نوع خرید</h3><div class="h-52"><canvas id="chartType"></canvas></div></div>
+          <div id="expertChartBox" class="chart-box manager-only hidden"><h3 class="font-bold text-sm mb-3 text-slate-700">توزیع کارشناسان</h3><div class="h-52"><canvas id="chartExpert"></canvas></div></div>
+        </div>
+        <div class="chart-box mt-4"><h3 class="font-bold text-sm mb-2 text-slate-700">اولویت‌ها</h3><div id="urgencyListMgr"></div></div>
+      </div>
+    </section>
+
+    <!-- Admin / Super-user panel -->
+    <section id="settingsSection" class="hidden px-5 pb-6 fade-in space-y-4">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3" id="adminStatusCards"></div>
+
+      <div class="bg-white border-2 border-indigo-200 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-bold text-slate-900 mb-1">Import اکسل ERP به دیتابیس</h3>
+        <p class="text-xs text-slate-500 mb-3">بعد از جایگزینی <code dir="ltr" class="bg-slate-100 px-1 rounded">input.xlsx</code> در share، این دکمه را بزنید تا فوراً در دیتابیس مشترک اعمال شود</p>
+        <div id="excelImportStatus" class="text-xs text-slate-600 mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-100"></div>
+        <button type="button" onclick="runExcelToDatabase()" class="btn btn-primary">اکسل را الان به دیتابیس import کن</button>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-5">
+        <h3 class="font-bold text-slate-900 mb-1">Import خودکار روزانه</h3>
+        <p class="text-xs text-slate-500 mb-4">پیش‌فرض ساعت ۸ صبح — فقط یک PC ویندوز IT باید آن ساعت روشن باشد</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <label class="flex items-center gap-2 text-sm">
+            <input id="importScheduleEnabled" type="checkbox" class="rounded border-slate-300">
+            <span>فعال</span>
+          </label>
+          <div>
+            <label class="text-xs text-slate-500">ساعت (تهران)</label>
+            <input id="importScheduleHour" type="number" min="0" max="23" class="input mt-1 !text-sm" value="8">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">دقیقه</label>
+            <input id="importScheduleMinute" type="number" min="0" max="59" class="input mt-1 !text-sm" value="0">
+          </div>
+        </div>
+        <div id="importScheduleStatus" class="text-xs text-slate-600 mb-4 p-3 rounded-xl bg-slate-50 border border-slate-100"></div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" onclick="saveImportSchedule()" class="btn btn-primary !text-xs">ذخیره زمان‌بندی</button>
+          <button type="button" onclick="setThisMachineAsImportRunner()" class="btn btn-ghost !text-xs">این PC مسئول import خودکار</button>
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div>
+            <h3 class="font-bold text-slate-900">پوشه Share و مسیر فایل‌ها</h3>
+            <p class="text-xs text-slate-500 mt-1">اکسل ورودی/خروجی، پایگاه داده فعال، staging و پشتیبان — پس از ذخیره بلافاصله اعمال می‌شود</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="applyShareDefaults()" class="btn btn-ghost !text-xs">پیش‌فرض از Share</button>
+            <button type="button" onclick="loadSystemPaths()" class="btn btn-ghost !text-xs">بازخوانی</button>
+          </div>
+        </div>
+        <div class="mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-900 leading-relaxed">
+          <strong>ساختار پیشنهادی Share:</strong>
+          <span dir="ltr" class="font-mono text-[11px] block mt-1 text-indigo-800">//server/share/tadarokat/</span>
+          شامل <code dir="ltr" class="bg-white/80 px-1 rounded">input.xlsx</code>،
+          <code dir="ltr" class="bg-white/80 px-1 rounded">output.xlsx</code>،
+          <code dir="ltr" class="bg-white/80 px-1 rounded">db_current.db</code>،
+          <code dir="ltr" class="bg-white/80 px-1 rounded">db_new.db</code>،
+          <code dir="ltr" class="bg-white/80 px-1 rounded">db_old.db</code> (پشتیبان)
+        </div>
+        <div id="settingsForm" class="space-y-5 text-sm"></div>
+        <p id="settingsError" class="text-red-500 text-sm mt-3 hidden"></p>
+        <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+          <button type="button" onclick="saveSystemPaths()" class="btn btn-primary">ذخیره و اعمال مسیرها</button>
+          <button type="button" onclick="runSystemExport()" class="btn btn-ghost !text-xs">Export به اکسل</button>
+        </div>
+        <p id="settingsMeta" class="text-[10px] text-slate-400 mt-3"></p>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-5">
+        <h3 class="font-bold text-slate-900 mb-1">ورود داده گردش کار (داده‌های قبلی)</h3>
+        <p class="text-xs text-slate-500 mb-4">تحویل‌ها، دستورات، استعلام‌ها و پیش‌فاکتورهای انجام‌شده را از اکسل وارد کنید</p>
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button type="button" onclick="downloadWorkflowTemplate()" class="btn btn-ghost !text-xs">📥 تمپلیت اکسل</button>
+          <button type="button" onclick="downloadWorkflowGuide()" class="btn btn-ghost !text-xs">📄 راهنمای Word</button>
+        </div>
+        <div class="flex flex-wrap items-end gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <div class="flex-1 min-w-[200px]">
+            <label class="text-xs text-slate-500">فایل اکسل پرشده</label>
+            <input id="workflowImportFile" type="file" accept=".xlsx,.xlsm" class="input mt-1 !text-xs">
+          </div>
+          <button type="button" onclick="runWorkflowImport()" class="btn btn-primary !text-xs">اجرای Import گردش کار</button>
+        </div>
+        <p id="workflowImportResult" class="text-xs text-slate-600 mt-3 hidden"></p>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-5">
+        <h3 class="font-bold text-slate-900 mb-3">وضعیت فایل‌ها</h3>
+        <div id="settingsFileStatus" class="space-y-2 text-xs"></div>
+      </div>
+    </section>
+
+    <!-- Users Admin -->
+    <section id="usersSection" class="hidden px-5 pb-6 fade-in">
+      <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div class="px-5 py-4 border-b flex justify-between items-center bg-slate-50">
+          <h3 class="font-bold text-slate-800">لیست کاربران</h3>
+          <button onclick="openUserForm()" class="btn btn-primary !py-2 !text-xs">+ کاربر جدید</button>
+        </div>
+        <div class="table-wrap !max-h-none">
+          <table class="data-table">
+            <thead><tr><th>نام</th><th>نام کاربری</th><th>نقش</th><th>کارشناس/انبار</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Duration Dashboard -->
+    <section id="durationSection" class="hidden px-5 pb-6 fade-in">
+      <p id="durationUnitNote" class="hidden text-[11px] text-slate-500 mb-3"></p>
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <h3 class="font-bold text-slate-800">میانگین مدت زمان بین مراحل</h3>
+        <select id="durationPeriod" onchange="loadDurationReport()" class="input !w-auto !py-1.5 !text-xs">
+          <option value="month">ماهانه</option>
+          <option value="quarter">فصلی</option>
+          <option value="year">سالانه</option>
+          <option value="all">همه (تجمیعی)</option>
+        </select>
+        <button type="button" onclick="exportCurrentViewExcel()" class="btn btn-ghost !py-1.5 !text-xs" title="خروجی اکسل">📊 اکسل</button>
+      </div>
+      <div id="durationSummary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">روند زمانی (روز)</h3><div class="h-56"><canvas id="chartDurationTrend"></canvas></div></div>
+        <div class="chart-box"><h3 class="font-bold text-sm mb-3 text-slate-700">میانگین به تفکیک انبار</h3><div id="durationByWarehouse" class="text-sm max-h-56 overflow-y-auto"></div></div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div class="px-4 py-3 border-b bg-slate-50"><h3 class="font-bold text-sm">تفکیک کالا (۵۰ مورد برتر)</h3></div>
+        <div class="table-wrap !max-h-96">
+          <table class="data-table">
+            <thead><tr><th>کالا/خرید</th><th>مراحل</th><th>میانگین کل (روز)</th></tr></thead>
+            <tbody id="durationProductBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notifications -->
+    <section id="notificationsSection" class="hidden px-5 pb-6 fade-in">
+      <div class="max-w-2xl mx-auto w-full space-y-4">
+        <div id="notifStatsRow" class="grid grid-cols-3 gap-3"></div>
+        <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div class="px-4 py-4 border-b bg-gradient-to-l from-indigo-50/80 to-white flex flex-wrap justify-between items-start gap-3">
+            <div>
+              <h3 class="font-bold text-base text-slate-800">اعلان‌های تحویل</h3>
+              <p id="notifSubtitle" class="text-[11px] text-slate-500 mt-0.5">فقط تحویل‌های کامل انبار شما</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" id="notifMarkAllBtn" class="btn btn-ghost !py-1.5 !px-3 !text-xs hidden">✓ همه خوانده شد</button>
+              <button type="button" id="notifRefreshBtn" class="btn btn-ghost !py-1.5 !px-3 !text-xs">↻ بروزرسانی</button>
+            </div>
+          </div>
+          <div id="notifFilterBar" class="px-4 py-2 border-b bg-slate-50/50 flex gap-2">
+            <button type="button" class="notif-filter-chip active" data-notif-filter="all">همه</button>
+            <button type="button" class="notif-filter-chip" data-notif-filter="unread">خوانده‌نشده</button>
+          </div>
+          <div id="notificationsList" class="max-h-[min(520px,calc(100vh-320px))] overflow-y-auto"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data Table -->
+    <section id="tableSection" class="hidden px-5 pb-6 flex-1 fade-in">
+      <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div class="px-4 py-3 border-b bg-slate-50 flex justify-between items-center">
+          <span id="rowCount" class="text-sm text-slate-500">۰ ردیف</span>
+          <div id="deliveriesToolbar" class="hidden">
+            <button onclick="openDeliveryForm()" class="btn btn-primary !py-1.5 !text-xs">+ ثبت تحویل</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div id="paginationBar" class="hidden px-4 py-3 border-t bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+          <p id="pageInfo" class="text-sm text-slate-500">صفحه ۱</p>
+          <div class="flex items-center gap-2">
+            <select id="pageSizeSelect" onchange="changePageSize(this.value)" class="input !w-auto !py-1.5 !text-xs">
+              <option value="25">۲۵</option>
+              <option value="50" selected>۵۰</option>
+              <option value="100">۱۰۰</option>
+            </select>
+            <button id="btnPrev" onclick="goPage(state.page - 1)" class="btn btn-ghost !py-1.5 !px-3 text-xs">قبلی</button>
+            <button id="btnNext" onclick="goPage(state.page + 1)" class="btn btn-primary !py-1.5 !px-3 text-xs">بعدی</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Context Menu -->
+<div id="contextMenu" class="hidden fixed z-50 bg-white rounded-xl shadow-2xl border border-slate-200 min-w-[180px] py-1 text-sm">
+  <button id="ctxEdit" class="hidden block w-full text-right px-4 py-2 hover:bg-slate-50" onclick="ctxAction('edit')">✏️ ویرایش همه فیلدها</button>
+  <button id="ctxIssue" class="block w-full text-right px-4 py-2 hover:bg-slate-50" onclick="ctxAction('issue')">📄 صدور استعلام</button>
+</div>
+
+<!-- Detail Modal -->
+<div id="detailModal" class="modal-overlay hidden" onclick="if(event.target===this)closeDetail()">
+  <div class="modal max-w-2xl fade-in max-h-[90vh] flex flex-col">
+    <div class="px-6 py-4 border-b flex justify-between items-center shrink-0">
+      <h3 class="font-bold">جزئیات</h3>
+      <button onclick="closeDetail()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+    </div>
+    <div id="detailContent" class="p-6 overflow-y-auto flex-1 min-h-0 modal-scroll-body"></div>
+    <div id="detailAdminActions" class="hidden px-6 py-4 border-t shrink-0">
+      <button type="button" onclick="openEditFromDetail()" class="btn btn-primary w-full">✏️ ویرایش همه فیلدها</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-overlay hidden" onclick="if(event.target===this)closeEdit()">
+  <div class="modal max-w-xl fade-in max-h-[92vh] flex flex-col">
+    <div class="px-6 py-5 border-b bg-gradient-to-l from-indigo-50 to-white shrink-0">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 id="editModalTitle" class="font-bold text-lg text-slate-900">ویرایش</h3>
+          <p id="editModalSubtitle" class="text-xs text-slate-500 mt-1">تغییرات در پایگاه داده محلی ذخیره می‌شود</p>
+        </div>
+        <button onclick="closeEdit()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+      </div>
+    </div>
+    <input id="editRequestNumber" type="hidden">
+    <div class="modal-scroll-body p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
+      <div id="editPurchaseInfo" class="edit-info-card grid grid-cols-2 gap-3 text-sm">
+        <div><span class="text-slate-400 text-xs">شماره خرید</span><p id="editDisplayNumber" class="font-bold text-indigo-700 mt-0.5">—</p></div>
+        <div><span class="text-slate-400 text-xs">نوع خرید</span><p id="editPurchaseType" class="font-medium mt-0.5">—</p></div>
+        <div class="col-span-2"><span class="text-slate-400 text-xs">عنوان کالا</span><p id="editProductTitle" class="font-medium mt-0.5">—</p></div>
+        <div><span class="text-slate-400 text-xs">کد کالا</span><p id="editProductCode" class="mt-0.5">—</p></div>
+        <div><span class="text-slate-400 text-xs">درخواست‌کننده</span><p id="editRequester" class="mt-0.5">—</p></div>
+      </div>
+      <div id="editAdminFields" class="hidden border-t pt-4">
+        <p class="text-xs font-bold text-indigo-800 mb-3">ویرایش همه فیلدها (مدیر سیستم)</p>
+        <div id="editDynamicFields" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
+      <div id="editStandardFields" class="border-t pt-4 grid grid-cols-2 gap-4 hidden">
+        <div class="form-field">
+          <label>وضعیت درخواست</label>
+          <select id="editStatus" class="input">
+            <option>در جریان</option><option>تایید شده</option><option>بسته شده</option><option>معلق</option><option>ثبت شده</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>اولویت</label>
+          <select id="editPriority" class="input">
+            <option value="">عادی</option><option value="فوری">فوری</option><option value="خیلی فوری">خیلی فوری</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>نوع خرید</label>
+          <select id="editPurchaseTypeField" class="input">
+            <option value="استعلامی">استعلامی</option>
+            <option value="کارپردازی">کارپردازی</option>
+            <option value="عادی">عادی</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>کارشناس خرید</label>
+          <select id="editExpert" class="input"><option value="">—</option></select>
+        </div>
+        <div class="form-field">
+          <label>مهلت استعلام</label>
+          <input id="editDeadline" class="input" placeholder="1405/04/10">
+        </div>
+        <div class="form-field col-span-2">
+          <label>توضیحات</label>
+          <textarea id="editNotes" rows="5" class="input resize-y min-h-[6rem]" placeholder="توضیحات تکمیلی..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t shrink-0 flex gap-3 bg-white">
+      <button onclick="saveEdit()" class="btn btn-primary flex-1 !py-3">💾 ذخیره تغییرات</button>
+      <button onclick="closeEdit()" class="btn btn-ghost flex-1 !py-3">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Form Modal -->
+<div id="userFormModal" class="modal-overlay hidden" onclick="if(event.target===this)closeUserForm()">
+  <div class="modal max-w-md fade-in max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+    <div class="px-6 py-4 border-b shrink-0"><h3 id="userFormTitle" class="font-bold">کاربر جدید</h3></div>
+    <div class="p-6 space-y-3 modal-scroll-body flex-1 min-h-0">
+      <p id="userFormError" class="text-red-500 text-sm"></p>
+      <div><label class="text-xs text-slate-500">نام کاربری</label><input id="fuUsername" class="input mt-1" dir="ltr" autocomplete="off"></div>
+      <div id="fuMetaWrap" class="hidden text-[10px] text-slate-400 space-y-1">
+        <p>شناسه: <span id="fuUserId" dir="ltr">—</span></p>
+        <p>ایجاد: <span id="fuCreatedAt" dir="ltr">—</span> · بروزرسانی: <span id="fuUpdatedAt" dir="ltr">—</span></p>
+      </div>
+      <div><label class="text-xs text-slate-500">رمز عبور</label><input id="fuPassword" type="password" class="input mt-1"></div>
+      <div><label class="text-xs text-slate-500">نام نمایشی</label><input id="fuName" class="input mt-1"></div>
+      <div><label class="text-xs text-slate-500">نقش</label><select id="fuRole" class="input mt-1" onchange="toggleUserWarehouseField()"><option value="expert">کارشناس</option><option value="manager">مدیر</option><option value="warehouse">انبار</option><option value="admin">مدیر سیستم</option></select></div>
+      <div id="fuExpertWrap"><label class="text-xs text-slate-500">کارشناس مرتبط (اختیاری)</label><input id="fuExpert" class="input mt-1" placeholder="فریبا صالح آبادی"></div>
+      <div id="fuWarehouseWrap" class="hidden"><label class="text-xs text-slate-500">انبار مرتبط *</label><input id="fuWarehouse" class="input mt-1" list="warehouseList" placeholder="انبار مصرفی"></div>
+      <label class="flex items-center gap-2 text-sm"><input id="fuActive" type="checkbox" checked> فعال</label>
+    </div>
+    <div class="px-6 py-4 border-t bg-slate-50 shrink-0 flex gap-2">
+      <button onclick="saveUser()" class="btn btn-primary flex-1">ذخیره</button>
+      <button onclick="closeUserForm()" class="btn btn-ghost flex-1">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="contractorList"></datalist>
+<datalist id="warehouseList">
+  <option value="انبار مصرفی">
+  <option value="نت تاسیسات">
+  <option value="ابنیه">
+</datalist>
+<datalist id="cityList"></datalist>
+<datalist id="unitList">
+  <option value="عدد">
+  <option value="کیلوگرم">
+  <option value="کیلو">
+  <option value="گرم">
+  <option value="تن">
+  <option value="متر">
+  <option value="متر مربع">
+  <option value="متر مکعب">
+  <option value="لیتر">
+  <option value="بسته">
+  <option value="رول">
+  <option value="شاخه">
+  <option value="جفت">
+  <option value="ست">
+  <option value="دستگاه">
+  <option value="سطل">
+  <option value="کیسه">
+</datalist>
+
+<!-- Issue Inquiry Wizard -->
+<div id="issueModal" class="modal-overlay hidden" onclick="if(event.target===this)closeIssue()">
+  <div class="modal max-w-6xl fade-in max-h-[92vh] flex flex-col">
+    <div class="px-6 py-4 border-b bg-indigo-50 shrink-0">
+      <h3 class="font-bold text-indigo-900">صدور استعلام و ثبت پیش‌فاکتور</h3>
+      <p class="text-xs text-indigo-600/70 mt-1">شماره استعلام رندوم · ذخیره در <span dir="ltr">local_changes.xlsx</span></p>
+    </div>
+    <div class="p-6 overflow-y-auto flex-1 space-y-4">
+      <p id="issueError" class="text-red-500 text-sm hidden"></p>
+
+      <div id="issueHeaderSection" class="space-y-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label class="text-xs text-slate-500">شماره خرید *</label>
+            <div class="flex gap-1 mt-1">
+              <input id="issuePurchaseNumber" class="input !py-2 !text-sm" required>
+              <button type="button" onclick="lookupPurchaseForIssue()" class="btn btn-ghost !px-2" title="بارگذاری">↻</button>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">شماره استعلام (رندوم)</label>
+            <input id="issueInquiryNumber" class="input mt-1 !text-sm" readonly>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">نوع خرید *</label>
+            <select id="issuePurchaseType" class="input mt-1 !text-sm" required>
+              <option value="استعلامی">استعلامی</option>
+              <option value="کارپردازی">کارپردازی</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">مهلت استعلام *</label>
+            <input id="issueDeadline" class="input mt-1 !text-sm" placeholder="1405/04/10" required>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">واحد تامین *</label>
+            <input id="issueUnit" class="input mt-1 !text-sm" value="تدارکات داخلی" required>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">رمز فوریت *</label>
+            <select id="issueUrgency" class="input mt-1 !text-sm" required>
+              <option value="">انتخاب کنید</option>
+              <option value="عادی">عادی</option>
+              <option value="فوری">فوری</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">انبار *</label>
+            <input id="issueWarehouse" class="input mt-1 !text-sm" list="warehouseList" placeholder="انتخاب یا تایپ..." required>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">درخواست‌دهنده *</label>
+            <input id="issueRequester" class="input mt-1 !text-sm" required>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">شماره درخواست کالا *</label>
+            <input id="issueMaterialRequestNumber" class="input mt-1 !text-sm" required>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">تاریخ درخواست کالا *</label>
+            <input id="issueMaterialRequestDate" class="input mt-1 !text-sm jalali-date" data-jdp placeholder="1405/03/25" required>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">تاریخ دریافت *</label>
+            <input id="issueReceiptDate" class="input mt-1 !text-sm jalali-date" data-jdp placeholder="1405/03/30" required>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">علت خرید</label>
+            <input id="issueReason" class="input mt-1 !text-sm" placeholder="اختیاری">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">ریسک عدم خرید</label>
+            <input id="issueRisk" class="input mt-1 !text-sm" placeholder="اختیاری">
+          </div>
+        </div>
+        <button type="button" onclick="confirmIssueHeader()" class="btn btn-primary w-full !py-3">تایید اطلاعات و ادامه به پیش‌فاکتورها</button>
+      </div>
+
+      <div id="issuePreinvoiceSection" class="hidden space-y-4">
+        <div class="flex justify-between items-center bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+          <p class="text-sm text-emerald-800">اطلاعات استعلام تایید شد — پیش‌فاکتور پیمانکاران را ثبت کنید · قبل از ذخیره نهایی می‌توانید <strong>چاپ</strong> یا <strong>خروجی اکسل</strong> مقایسه بگیرید</p>
+          <button type="button" onclick="editIssueHeader()" class="text-xs text-indigo-600 hover:underline">ویرایش اطلاعات قبلی</button>
+        </div>
+        <div class="flex flex-wrap justify-between items-center gap-2">
+          <h4 class="font-bold text-sm text-slate-700">پیش‌فاکتور پیمانکاران</h4>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="printIssueCompare()" class="btn btn-ghost !py-1.5 !text-xs" title="چاپ جدول مقایسه">🖨 چاپ مقایسه</button>
+            <button type="button" onclick="exportIssueCompareExcel()" class="btn btn-ghost !py-1.5 !text-xs" title="دانلود اکسل مقایسه">📊 خروجی اکسل</button>
+            <button type="button" onclick="addPreInvoiceCard()" class="btn btn-primary !py-1.5 !text-xs">+ پیمانکار جدید</button>
+          </div>
+        </div>
+        <div id="preInvoiceCards"></div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t bg-slate-50 shrink-0 flex flex-wrap gap-2">
+      <button type="button" id="issuePrintBtn" onclick="printIssueCompare()" class="btn btn-ghost hidden sm:inline-flex">🖨 چاپ</button>
+      <button type="button" id="issueExportBtn" onclick="exportIssueCompareExcel()" class="btn btn-ghost hidden sm:inline-flex">📊 اکسل</button>
+      <button onclick="submitIssue()" class="btn btn-primary flex-1 min-w-[10rem]">صدور استعلام و ذخیره</button>
+      <button onclick="closeIssue()" class="btn btn-ghost flex-1 min-w-[6rem]">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<!-- Last Purchase Compare Modal -->
+<div id="lastPurchaseModal" class="modal-overlay hidden" onclick="if(event.target===this)closeLastPurchaseCompare()">
+  <div class="modal max-w-3xl fade-in max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+    <div class="px-6 py-4 border-b flex justify-between items-center shrink-0">
+      <h3 id="lastPurchaseTitle" class="font-bold text-slate-900">مقایسه با آخرین خرید</h3>
+      <button onclick="closeLastPurchaseCompare()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+    </div>
+    <div id="lastPurchaseBody" class="p-6 overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- Manager Review Modal — مقایسه + تایید در یک جریان -->
+<div id="reviewModal" class="modal-overlay hidden" onclick="if(event.target===this)closeReview()">
+  <div class="modal max-w-5xl fade-in max-h-[92vh] flex flex-col">
+    <div class="px-6 py-4 border-b shrink-0">
+      <div class="flex justify-between items-start gap-4">
+        <div>
+          <h3 id="reviewTitle" class="font-bold text-slate-900">بررسی استعلام</h3>
+          <p id="reviewSubtitle" class="text-xs text-slate-500 mt-1"></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="printInquiryCompareFromReview()" class="btn btn-ghost !py-1 !px-2 !text-[10px]" title="چاپ مقایسه">🖨 چاپ</button>
+          <button type="button" onclick="exportInquiryCompareExcelFromReview()" class="btn btn-ghost !py-1 !px-2 !text-[10px]" title="خروجی اکسل">📊 اکسل</button>
+          <button onclick="closeReview()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+        </div>
+      </div>
+      <div class="flex gap-1 mt-4 p-1 bg-slate-100 rounded-xl w-fit">
+        <button type="button" id="reviewTabCompare" onclick="setReviewStep('compare')" class="review-step-tab px-4 py-2 rounded-lg text-sm font-medium transition">۱ · مقایسه قیمت</button>
+        <button type="button" id="reviewTabApprove" onclick="setReviewStep('approve')" class="review-step-tab px-4 py-2 rounded-lg text-sm font-medium transition">۲ · تایید و دستور</button>
+      </div>
+    </div>
+    <div id="reviewBody" class="p-6 overflow-y-auto flex-1"></div>
+    <div id="reviewFooter" class="px-6 py-4 border-t bg-slate-50 shrink-0 hidden"></div>
+  </div>
+</div>
+
+<!-- Expert Inquiry Detail Modal -->
+<div id="expertDetailModal" class="modal-overlay hidden" onclick="if(event.target===this)closeExpertDetail()">
+  <div class="modal max-w-5xl fade-in max-h-[90vh] flex flex-col">
+    <div class="px-6 py-4 border-b flex justify-between items-center shrink-0">
+      <h3 id="expertDetailTitle" class="font-bold text-slate-900">جزئیات استعلام</h3>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="printInquiryCompareFromDetail()" class="btn btn-ghost !py-1 !px-2 !text-[10px]" title="چاپ مقایسه">🖨 چاپ</button>
+        <button type="button" onclick="exportInquiryCompareExcelFromDetail()" class="btn btn-ghost !py-1 !px-2 !text-[10px]" title="خروجی اکسل">📊 اکسل</button>
+        <button onclick="closeExpertDetail()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+      </div>
+    </div>
+    <div id="expertDetailBody" class="p-6 overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+<!-- Action Modal -->
+<div id="actionModal" class="modal-overlay hidden" onclick="if(event.target===this)closeAction()">
+  <div class="modal max-w-sm fade-in p-6">
+    <h3 id="actionTitle" class="font-bold mb-2"></h3>
+    <div id="actionBody" class="text-sm text-slate-600"></div>
+    <button onclick="closeAction()" class="btn btn-ghost w-full mt-4">بستن</button>
+  </div>
+</div>
+
+<!-- Loading Popup (non-blocking) -->
+<div id="loadingPopup" class="loading-popup hidden">
+  <div class="loading-popup-inner">
+    <div class="loading-spinner"></div>
+    <span id="loadingText">در حال بارگذاری...</span>
+  </div>
+</div>
+
+<!-- Issue Order Modal -->
+<div id="issueOrderModal" class="modal-overlay hidden" onclick="if(event.target===this)closeIssueOrderModal()">
+  <div class="modal max-w-md fade-in p-6">
+    <h3 class="font-bold text-lg mb-1">صدور دستور خرید</h3>
+    <p class="text-xs text-slate-500 mb-4">شماره دستور را دستی وارد کنید — پس از صدور به کارتابل کارشناس می‌رود</p>
+    <input id="issueOrderInquiry" type="hidden">
+    <input id="issueOrderPreinvoiceId" type="hidden">
+    <p id="issueOrderError" class="text-red-500 text-sm mb-2"></p>
+    <div class="space-y-3">
+      <div><label class="text-xs text-slate-500">پیمانکار تاییدشده</label><p id="issueOrderContractor" class="font-medium mt-1">—</p></div>
+      <div><label class="text-xs text-slate-500">شماره دستور *</label><input id="issueOrderNumber" class="input mt-1" placeholder="مثلاً D-1405-001"></div>
+      <p class="text-xs text-slate-400">تاریخ دستور هنگام ثبت خودکار تنظیم می‌شود</p>
+      <div><label class="text-xs text-slate-500">توضیحات</label><textarea id="issueOrderNotes" class="input mt-1" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="submitIssueOrder()" class="btn btn-primary flex-1">صدور دستور</button>
+      <button onclick="closeIssueOrderModal()" class="btn btn-ghost flex-1">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order Stage Modal -->
+<div id="orderStageModal" class="modal-overlay hidden" onclick="if(event.target===this)closeOrderStageModal()">
+  <div class="modal max-w-lg fade-in max-h-[92vh] flex flex-col">
+    <div class="px-6 py-4 border-b shrink-0">
+      <h3 id="orderStageTitle" class="font-bold">گردش دستور خرید</h3>
+      <p class="text-xs text-slate-500 mt-1">دستور <span id="orderStageNumber" class="font-medium">—</span> · استعلام <span id="orderStageInquiry">—</span> · انبار <span id="orderStageWarehouse">—</span></p>
+      <p id="orderStageProgress" class="text-xs text-indigo-700 mt-1 font-medium"></p>
+    </div>
+    <div id="orderStageBody" class="p-6 space-y-4 overflow-y-auto flex-1"></div>
+    <div class="px-6 py-4 border-t shrink-0 flex gap-2">
+      <button id="orderStageSubmitBtn" type="button" onclick="submitOrderStage()" class="btn btn-primary flex-1">ثبت مرحله</button>
+      <button type="button" onclick="closeOrderStageModal()" class="btn btn-ghost flex-1">بستن</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delivery Form Modal -->
+<div id="deliveryFormModal" class="modal-overlay hidden" onclick="if(event.target===this)closeDeliveryForm()">
+  <div class="modal max-w-lg fade-in max-h-[92vh] flex flex-col">
+    <div class="px-6 py-4 border-b shrink-0"><h3 id="deliveryFormTitle" class="font-bold">ثبت تحویل</h3></div>
+    <div class="p-6 space-y-3 overflow-y-auto flex-1">
+      <p id="deliveryFormError" class="text-red-500 text-sm"></p>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-slate-500">شماره تحویل *</label><input id="deliveryNumber" class="input mt-1"></div>
+        <div><label class="text-xs text-slate-500">شماره دستور</label><input id="deliveryOrderNumber" class="input mt-1"></div>
+        <div><label class="text-xs text-slate-500">شماره خرید</label><input id="deliveryPurchaseNumber" class="input mt-1"></div>
+        <div><label class="text-xs text-slate-500">انبار</label><input id="deliveryWarehouse" class="input mt-1" list="warehouseList"></div>
+        <div class="col-span-2"><label class="text-xs text-slate-500">عنوان کالا</label><input id="deliveryProductTitle" class="input mt-1"></div>
+        <div><label class="text-xs text-slate-500">مقدار</label><input id="deliveryQuantity" type="number" step="any" class="input mt-1"></div>
+        <div><label class="text-xs text-slate-500">واحد</label><input id="deliveryUnit" class="input mt-1" list="unitList"></div>
+        <div><label class="text-xs text-slate-500">تاریخ تحویل</label><input id="deliveryDate" class="input mt-1 jalali-date" data-jdp></div>
+        <div><label class="text-xs text-slate-500">تحویل گیرنده</label><input id="deliveryReceiver" class="input mt-1"></div>
+        <div><label class="text-xs text-slate-500">وضعیت</label>
+          <select id="deliveryStatus" class="input mt-1"><option>ثبت شده</option><option>تحویل شده</option><option>بسته شده</option></select>
+        </div>
+        <div class="col-span-2"><label class="text-xs text-slate-500">توضیحات</label><textarea id="deliveryNotes" class="input mt-1" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t shrink-0 flex gap-2">
+      <button onclick="saveDelivery()" class="btn btn-primary flex-1">ذخیره</button>
+      <button onclick="closeDeliveryForm()" class="btn btn-ghost flex-1">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password -->
+<div id="changePasswordModal" class="modal-overlay hidden" onclick="if(event.target===this)closeChangePasswordModal()">
+  <div class="modal max-w-md fade-in">
+    <div class="px-6 py-4 border-b"><h3 class="font-bold">تغییر رمز عبور</h3></div>
+    <div class="p-6 space-y-3">
+      <p id="changePasswordError" class="text-red-500 text-sm hidden"></p>
+      <div><label class="text-xs text-slate-500">رمز فعلی</label><input id="cpCurrent" type="password" class="input mt-1" autocomplete="current-password"></div>
+      <div><label class="text-xs text-slate-500">رمز جدید (حداقل ۶ کاراکتر)</label><input id="cpNew" type="password" class="input mt-1" autocomplete="new-password"></div>
+      <div><label class="text-xs text-slate-500">تکرار رمز جدید</label><input id="cpConfirm" type="password" class="input mt-1" autocomplete="new-password"></div>
+    </div>
+    <div class="px-6 py-4 border-t flex gap-2">
+      <button onclick="submitChangePassword()" class="btn btn-primary flex-1">ذخیره</button>
+      <button onclick="closeChangePasswordModal()" class="btn btn-ghost flex-1">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin single-field edit -->
+<div id="fieldEditModal" class="modal-overlay field-edit-overlay hidden" onclick="if(event.target===this)closeFieldEdit()">
+  <div class="modal max-w-md fade-in" onclick="event.stopPropagation()">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+      <div>
+        <h3 id="fieldEditTitle" class="font-bold text-slate-900">ویرایش فیلد</h3>
+        <p id="fieldEditSubtitle" class="text-xs text-slate-500 mt-0.5"></p>
+      </div>
+      <button type="button" onclick="closeFieldEdit()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+    </div>
+    <div class="p-6 space-y-3">
+      <p id="fieldEditError" class="text-red-500 text-sm hidden"></p>
+      <div id="fieldEditInputWrap">
+        <input id="fieldEditValue" class="input" type="text">
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t flex gap-2">
+      <button type="button" onclick="saveFieldEdit()" class="btn btn-primary flex-1">ذخیره</button>
+      <button type="button" onclick="closeFieldEdit()" class="btn btn-ghost flex-1">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden opacity-0"></div>
+
+<script src="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/auth.js?v=20260627h"></script>
+<script src="/static/js/users.js?v=20260627f"></script>
+<script src="/static/js/settings.js?v=20260628c"></script>
+<script src="/static/js/warehouse.js"></script>
+<script src="/static/js/notifications.js?v=20260627g"></script>
+<script src="/static/js/inquiry.js?v=20260626h"></script>
+<script src="/static/js/workflow.js?v=20260627d"></script>
+<script src="/static/js/admin-edit.js?v=20260626h"></script>
+<script src="/static/js/experts.js?v=20260627a"></script>
+<script src="/static/js/app.js?v=20260629b"></script>
+</body>
+</html>

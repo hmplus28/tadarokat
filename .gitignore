@@ -1,0 +1,18 @@
+.venv/
+.tools/
+.installed
+share.config.json
+share.config.json.bak
+logs/
+share_users.seed.json
+**/share_users.seed.json
+__pycache__/
+*.pyc
+.pytest_cache/
+data/
+*.db
+*.db-wal
+*.db-shm
+*.xlsx
+*.xlsm
+New folder/
