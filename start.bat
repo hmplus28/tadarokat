@@ -1,12 +1,15 @@
 @echo off
+setlocal EnableExtensions
 cd /d "%~dp0"
-chcp 65001 >nul
-title تدارکات — در حال بالا آوردن...
+
+title Tadarokat - Starting...
 
 where docker >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo  Docker نصب نیست. راهنما: RAHNAMA_NASB.md
+    echo  Docker is not installed or not in PATH.
+    echo  Install Docker Desktop, then run this file again.
+    echo  Guide: RAHNAMA_NASB.md
     echo.
     pause
     exit /b 1
@@ -15,9 +18,9 @@ if errorlevel 1 (
 docker info >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo  Docker Desktop روشن نیست.
-    echo  برنامه Docker Desktop را باز کنید و صبر کنید تا Ready شود.
-    echo  راهنما: RAHNAMA_NASB.md
+    echo  Docker Desktop is not running.
+    echo  Open Docker Desktop and wait until it shows "Running".
+    echo  Guide: RAHNAMA_NASB.md
     echo.
     pause
     exit /b 1
@@ -25,23 +28,23 @@ if errorlevel 1 (
 
 echo.
 echo  ==========================================
-echo    تدارکات — فقط همین یک دستور کافی است
+echo    Tadarokat - one-click start
 echo  ==========================================
 echo.
-echo  پوشه پروژه: %CD%
-echo  آدرس: http://localhost:8000
-echo  ورود: admin / admin1234
+echo  Project folder: %CD%
+echo  URL:  http://localhost:8000
+echo  Login: admin / admin1234
 echo.
 
 docker compose up --build
 set EXIT_CODE=%ERRORLEVEL%
 
 echo.
-if %EXIT_CODE% neq 0 (
-    echo  خطا در اجرا ^(کد %EXIT_CODE%^). پیام بالا را بخوانید.
-    echo  راهنما: RAHNAMA_NASB.md
+if not "%EXIT_CODE%"=="0" (
+    echo  Error starting the app. Exit code: %EXIT_CODE%
+    echo  Read the messages above. Guide: RAHNAMA_NASB.md
 ) else (
-    echo  سرویس متوقف شد.
+    echo  Service stopped.
 )
 echo.
 pause
