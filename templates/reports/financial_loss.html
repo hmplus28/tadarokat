@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}ضرر مالی{% endblock %}
+{% block page_title %}گزارش ضرر مالی{% endblock %}
+{% block page_subtitle %}مقایسه جمع کل فاکتور (AL) با مبالغ خرید — بدون جمع بودجه{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include 'reports/_report_header.html' %}
+
+    <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-sm text-rose-950">
+        <p class="font-bold mb-1">منطق محاسبه ضرر</p>
+        <ul class="text-xs space-y-1 list-disc list-inside text-rose-900">
+            <li>مبالغ <strong>AC</strong>، <strong>AD</strong> و <strong>AN</strong> جداگانه نمایش داده می‌شوند — <strong>جمع نمی‌شوند</strong></li>
+            <li>ملاک ضرر: مقایسه <strong>جمع کل فاکتور (AL)</strong> با <strong>جمع کل سفارش (AC)</strong></li>
+            <li>اگر AL &gt; AC → قیمت بالا رفته و <strong>ضرر مالی</strong> به اندازه اختلاف (ریال)</li>
+            <li>مبالغ اکسل گاهی یک ستون را به‌اشتباه <strong>تومان</strong> می‌خواند — در گزارش و import به ریال نرمال می‌شوند</li>
+            <li>فقط پرونده‌هایی که هم AC و هم AL دارند بررسی می‌شوند</li>
+            <li>ردیف‌های با <strong>شماره خرید و شماره سفارش یکسان</strong> فقط یک‌بار نمایش داده می‌شوند</li>
+            <li>فیلتر تاریخ بر اساس <strong>تاریخ درخواست (ستون D)</strong></li>
+        </ul>
+    </div>
+
+    {% include 'reports/_date_filter_form.html' with filter_title="فیلتر دوره و جستجو" clear_url=clear_url show_search=show_search filter_warning=filter_warning %}
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">📦</div>
+            <p class="kpi-label">بررسی‌شده</p>
+            <p class="kpi-value">{{ overall.evaluated|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #ef4444">
+            <div class="kpi-icon bg-red-100 text-red-600">📉</div>
+            <p class="kpi-label">دارای ضرر</p>
+            <p class="kpi-value text-red-600">{{ overall.with_loss|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #f59e0b">
+            <div class="kpi-icon bg-amber-100 text-amber-600">%</div>
+            <p class="kpi-label">نرخ ضرر</p>
+            <p class="kpi-value text-amber-600">{{ overall.loss_rate|fa }}٪</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">✓</div>
+            <p class="kpi-label">بدون ضرر</p>
+            <p class="kpi-value text-emerald-700">{{ overall.on_budget|add:overall.under_budget|fa_comma }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="font-bold text-slate-800">ضرر به تفکیک کارشناس</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="data-table text-xs">
+                    <thead>
+                        <tr>
+                            <th>کارشناس</th>
+                            <th>بررسی</th>
+                            <th>ضرر</th>
+                            <th>نرخ٪</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in expert_stats %}
+                        {% if row.with_loss > 0 %}
+                        <tr class="bg-rose-50/30">
+                            <td class="font-medium text-slate-800">{{ row.name }}</td>
+                            <td>{{ row.evaluated|fa_comma }}</td>
+                            <td class="text-red-700 font-bold">{{ row.with_loss|fa_comma }}</td>
+                            <td class="font-bold text-amber-600">{{ row.rate|fa }}٪</td>
+                        </tr>
+                        {% endif %}
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-slate-400 py-6">موردی یافت نشد</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="font-bold text-slate-800">ضرر به تفکیک گروه کالایی</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="data-table text-xs">
+                    <thead>
+                        <tr>
+                            <th>گروه کالایی</th>
+                            <th>بررسی</th>
+                            <th>ضرر</th>
+                            <th>نرخ٪</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in category_stats %}
+                        {% if row.with_loss > 0 %}
+                        <tr class="bg-rose-50/30">
+                            <td class="font-medium text-slate-800">{{ row.name }}</td>
+                            <td>{{ row.evaluated|fa_comma }}</td>
+                            <td class="text-red-700 font-bold">{{ row.with_loss|fa_comma }}</td>
+                            <td class="font-bold text-amber-600">{{ row.rate|fa }}٪</td>
+                        </tr>
+                        {% endif %}
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-slate-400 py-6">موردی یافت نشد</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
+            <div>
+                <h3 class="font-bold text-slate-800">پرونده‌های دارای ضرر مالی</h3>
+                <p class="text-[11px] text-slate-500 mt-1">{{ loss_total|fa_comma }} پرونده — مرتب‌شده بر اساس بیشترین ضرر (AL − AC)</p>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table text-xs">
+                <thead>
+                    <tr>
+                        <th>شماره خرید</th>
+                        <th>شماره سفارش</th>
+                        <th>کالا</th>
+                        <th>کارشناس</th>
+                        <th>گروه</th>
+                        <th>سفارش (AC)</th>
+                        <th>پیش‌پرداخت (AD)</th>
+                        <th>درخواست پرداخت (AN)</th>
+                        <th>فاکتور (AL)</th>
+                        <th>اختلاف (AL−AC)</th>
+                        <th>افزایش٪</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for case in page_obj %}
+                    <tr class="bg-rose-50/20 hover:bg-rose-50/40">
+                        <td>
+                            <a href="{% url 'purchases:detail' case.pk %}" class="font-mono font-bold text-indigo-600 hover:underline">
+                                {{ case.purchase_number|fa }}
+                            </a>
+                        </td>
+                        <td class="font-mono text-slate-700">{{ case.order_request_number|fa }}</td>
+                        <td class="max-w-[180px] truncate" title="{{ case.product_title }}">{{ case.product_title }}</td>
+                        <td>{{ case.expert_name }}</td>
+                        <td>{{ case.product_category }}</td>
+                        <td class="text-slate-600">{{ case.order_total|fa_comma }}</td>
+                        <td class="text-slate-600">{{ case.advance_payment|fa_comma }}</td>
+                        <td class="text-slate-600">{{ case.payment_request_amount|fa_comma }}</td>
+                        <td class="font-bold text-cyan-700">{{ case.invoice_total|fa_comma }}</td>
+                        <td class="font-bold text-red-700">{{ case.loss_amount|fa_comma }}</td>
+                        <td class="font-bold text-amber-600">{{ case.loss_rate|fa }}٪</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center text-slate-400 py-8">
+                            پرونده‌ای با اختلاف مثبت (فاکتور بیشتر از سفارش) یافت نشد
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="px-6 py-4 border-t border-slate-100 flex flex-wrap justify-center gap-2 text-xs">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">قبلی</a>
+            {% endif %}
+            <span class="px-3 py-1.5 text-slate-500">
+                صفحه {{ page_obj.number|fa }} از {{ page_obj.paginator.num_pages|fa }}
+            </span>
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">بعدی</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

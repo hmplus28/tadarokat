@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}جمع مبالغ سفارش{% endblock %}
+{% block page_title %}گزارش جمع مبالغ سفارش{% endblock %}
+{% block page_subtitle %}به تفکیک گروه کالایی — ملاک مبلغ: جمع کل سفارش (ستون AC){% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include 'reports/_report_header.html' %}
+
+    {% include 'reports/_date_filter_form.html' with filter_title="فیلتر دوره (بر اساس تاریخ درخواست — ستون D)" clear_url=clear_url show_search=show_search filter_warning=filter_warning %}
+
+    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-950">
+        <p class="font-bold mb-1">منطق جمع مبالغ</p>
+        <p class="text-xs text-emerald-900">جمع کل سفارش (AC) مربوط به کل سفارش است — ردیف‌های با <strong>شماره سفارش یکسان</strong> فقط یک‌بار در جمع لحاظ می‌شوند.</p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">💰</div>
+            <p class="kpi-label">جمع کل سفارشات</p>
+            <p class="kpi-value text-emerald-700">{{ summary.grand_total|fa_compact }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">📋</div>
+            <p class="kpi-label">کل پرونده‌ها</p>
+            <p class="kpi-value">{{ summary.total_purchases|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #06b6d4">
+            <div class="kpi-icon bg-cyan-100 text-cyan-600">🧾</div>
+            <p class="kpi-label">سفارش دارای مبلغ</p>
+            <p class="kpi-value text-cyan-700">{{ summary.with_amount|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #8b5cf6">
+            <div class="kpi-icon bg-violet-100 text-violet-600">📊</div>
+            <p class="kpi-label">گروه‌های دارای مبلغ</p>
+            <p class="kpi-value text-violet-700">{{ summary.category_count|fa_comma }}</p>
+        </div>
+    </div>
+
+    {% if summary.without_category > 0 %}
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-950">
+        <p class="font-bold mb-1">{{ summary.without_category|fa_comma }} پرونده بدون گروه کالایی</p>
+        <p class="text-xs">مبالغ این پرونده‌ها در ردیف «بدون گروه کالایی» نمایش داده می‌شود.</p>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-2">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-1 h-5 bg-emerald-500 rounded-full"></span>
+                جمع مبالغ به تفکیک گروه کالایی
+                {% if filter_params.period != 'all' %}
+                <span class="text-xs font-normal text-slate-500">— {{ filter_label }}</span>
+                {% endif %}
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>گروه کالایی</th>
+                        <th>جمع مبلغ سفارش (ریال)</th>
+                        <th>سهم (٪)</th>
+                        <th>تعداد پرونده</th>
+                        <th>دارای مبلغ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in summary.categories %}
+                    <tr class="{% if cat.amount == 0 %}opacity-60{% endif %}">
+                        <td class="font-medium text-slate-800">
+                            {{ cat.name }}
+                            {% if cat.name == 'بدون گروه کالایی' %}
+                            <span class="badge badge-amber text-[10px] mr-1">تخصیص‌نیافته</span>
+                            {% endif %}
+                        </td>
+                        <td class="font-bold text-emerald-700">{{ cat.amount|fa_comma }}</td>
+                        <td>
+                            {% if cat.amount > 0 %}
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[80px]">
+                                    <div class="h-full bg-emerald-500 rounded-full" style="width: {{ cat.share }}%"></div>
+                                </div>
+                                <span class="text-xs font-bold text-slate-600">{{ cat.share|fa }}٪</span>
+                            </div>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-slate-600">{{ cat.purchase_count|fa_comma }}</td>
+                        <td class="text-slate-600">{{ cat.with_amount|fa_comma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-slate-400 py-8">داده‌ای یافت نشد</td></tr>
+                    {% endfor %}
+                </tbody>
+                {% if summary.categories %}
+                <tfoot>
+                    <tr class="bg-emerald-50 font-bold">
+                        <td class="text-slate-800">جمع کل</td>
+                        <td class="text-emerald-800">{{ summary.grand_total|fa_comma }}</td>
+                        <td>۱۰۰٪</td>
+                        <td>{{ summary.total_purchases|fa_comma }}</td>
+                        <td>{{ summary.with_amount|fa_comma }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% for cat in summary.categories %}
+        {% if cat.amount > 0 %}
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50/20 p-4">
+            <div class="flex justify-between items-start gap-2 mb-2">
+                <h4 class="font-bold text-slate-800 text-sm">{{ cat.name }}</h4>
+                <span class="badge badge-green text-[10px]">{{ cat.share|fa }}٪</span>
+            </div>
+            <p class="text-lg font-black text-emerald-700 mb-1">{{ cat.amount|fa_compact }}</p>
+            <p class="text-[11px] text-slate-500">{{ cat.with_amount|fa_comma }} پرونده با مبلغ سفارش</p>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

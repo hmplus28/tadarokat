@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}آپلود اکسل{% endblock %}
+{% block page_title %}آپلود و همگام‌سازی اکسل{% endblock %}
+{% block page_subtitle %}قالب داینامیک ورودی + واردسازی اتمیک و خروجی غنی‌شده با جزئیات پنل{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <a href="{% url 'dashboard' %}" class="text-sm text-slate-500 hover:text-indigo-600 font-medium">← بازگشت به داشبورد</a>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex flex-col gap-4 justify-between">
+            <div>
+                <h3 class="font-bold text-indigo-950 flex items-center gap-2">📥 قالب ورودی اکسل</h3>
+                <p class="text-xs text-indigo-800 mt-1 leading-relaxed">
+                    قالب به‌صورت خودکار از ستون‌های سیستم ساخته می‌شود.
+                    با هر تغییر در نگاشت import، نسخه قالب هم به‌روز می‌شود.
+                </p>
+                <p class="text-[10px] text-indigo-600 mt-2 font-mono">
+                    نسخه اسکیما: {{ template_version }} · {{ template_column_count|fa }} ستون
+                </p>
+            </div>
+            <a href="{% url 'purchases:download_excel_template' %}"
+               class="btn btn-primary !py-3 !px-5 whitespace-nowrap !bg-indigo-600 hover:!bg-indigo-700 shrink-0 self-start">
+                ⬇️ دانلود قالب
+            </a>
+        </div>
+
+        <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 flex flex-col gap-4 justify-between">
+            <div>
+                <h3 class="font-bold text-violet-950 flex items-center gap-2">📤 خروجی کامل دیتابیس</h3>
+                <p class="text-xs text-violet-800 mt-1 leading-relaxed">
+                    همه رکوردهای پنل در یک اکسل — همان ستون‌های ورودی به‌علاوه
+                    انحراف مهلت، لید تایم پرداخت و وضعیت فعلی پنل.
+                </p>
+                <p class="text-[10px] text-violet-600 mt-2">
+                    قالب مشابه اکسل غنی‌شده پس از آپلود
+                </p>
+            </div>
+            <a href="{% url 'purchases:download_full_excel_export' %}"
+               class="btn btn-primary !py-3 !px-5 whitespace-nowrap !bg-violet-600 hover:!bg-violet-700 shrink-0 self-start">
+                ⬇️ دانلود خروجی کامل
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-cyan-50 border border-cyan-200 rounded-xl p-4 text-sm text-cyan-950">
+        <p class="font-bold mb-2">نحوه کار</p>
+        <ul class="text-xs space-y-1.5 list-disc list-inside text-cyan-900">
+            <li>ابتدا <strong>قالب را دانلود</strong> کنید و داده‌ها را در شیت «ورودی» وارد کنید</li>
+            <li>شیت «راهنما» توضیح هر ستون و نام‌های جایگزین را نشان می‌دهد</li>
+            <li>ستون <strong>شماره درخواست خرید</strong> الزامی است — سطر نمونه را حذف یا ویرایش کنید</li>
+            <li>ردیف‌های جدید → <strong>ایجاد</strong> · ردیف‌های موجود → <strong>به‌روزرسانی</strong></li>
+            <li>فیلدهای گردش کار (استعلام، دستور، تحویل) در حالت هوشمند <strong>حفظ</strong> می‌شوند</li>
+            <li>واردسازی <strong>اتمیک</strong> است — در صورت خطا هیچ تغییری ذخیره نمی‌شود</li>
+            <li>پس از آپلود، اکسل خروجی با <strong>جزئیات پنل</strong> قابل دانلود است</li>
+        </ul>
+    </div>
+
+    <div id="upload-success" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
+        <h3 class="font-bold text-emerald-900 flex items-center gap-2">✅ پردازش با موفقیت انجام شد</h3>
+        <p class="text-sm text-emerald-800">فایل: <strong id="success-filename"></strong></p>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-white rounded-lg p-3 text-center border border-emerald-100">
+                <p class="text-[10px] text-slate-500">جدید</p>
+                <p class="text-xl font-bold text-emerald-700" id="stat-created">۰</p>
+            </div>
+            <div class="bg-white rounded-lg p-3 text-center border border-emerald-100">
+                <p class="text-[10px] text-slate-500">به‌روزرسانی</p>
+                <p class="text-xl font-bold text-indigo-700" id="stat-updated">۰</p>
+            </div>
+            <div class="bg-white rounded-lg p-3 text-center border border-emerald-100">
+                <p class="text-[10px] text-slate-500">ردیف اکسل به‌روز</p>
+                <p class="text-xl font-bold text-cyan-700" id="stat-rows-updated">۰</p>
+            </div>
+            <div class="bg-white rounded-lg p-3 text-center border border-emerald-100">
+                <p class="text-[10px] text-slate-500">افزوده به اکسل</p>
+                <p class="text-xl font-bold text-violet-700" id="stat-rows-appended">۰</p>
+            </div>
+        </div>
+
+        <a id="download-link" href="#"
+           class="btn btn-primary !py-3 !px-6 inline-flex items-center gap-2">
+            📥 دانلود اکسل غنی‌شده (پنل + اکسل)
+        </a>
+    </div>
+
+    <div id="upload-progress" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <p class="font-bold text-slate-800">در حال پردازش...</p>
+                <p class="text-xs text-slate-500 mt-1" id="progress-phase">—</p>
+            </div>
+            <span class="text-lg font-bold text-indigo-600 tabular-nums" id="progress-percent">۰٪</span>
+        </div>
+        <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full bg-gradient-to-l from-indigo-500 to-cyan-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p class="text-xs text-slate-600" id="progress-message"></p>
+        <div class="bg-slate-900 rounded-xl p-3 max-h-48 overflow-y-auto font-mono text-[11px] leading-relaxed" dir="ltr">
+            <div id="progress-log" class="space-y-1 text-slate-300"></div>
+        </div>
+    </div>
+
+    <div id="upload-error" class="hidden bg-rose-50 border border-rose-200 rounded-2xl p-6 space-y-3">
+        <h3 class="font-bold text-rose-900">❌ خطا در پردازش اکسل</h3>
+        <p class="text-sm text-rose-800" id="error-message"></p>
+        <div class="bg-white border border-rose-100 rounded-lg p-3 max-h-40 overflow-y-auto text-xs text-rose-700 font-mono" dir="ltr">
+            <div id="error-log" class="space-y-1"></div>
+        </div>
+        <p class="text-xs text-rose-600">هیچ تغییری در دیتابیس ذخیره نشد.</p>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <form id="excel-upload-form" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="form-label">فایل اکسل (.xlsx)</label>
+                <input type="file" name="excel_file" id="excel-file-input" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                       required
+                       class="block w-full text-sm text-slate-600 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-bold hover:file:bg-indigo-100">
+                <p class="text-[11px] text-slate-400 mt-2">حداکثر ۵۰ مگابایت — همان ساختار قالب دانلودی</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button type="submit" id="upload-submit-btn" class="btn btn-primary !py-3 !px-6">
+                    📤 آپلود، واردسازی و تولید اکسل خروجی
+                </button>
+                <a href="{% url 'purchases:download_excel_template' %}" class="btn btn-ghost !py-3 !px-6">
+                    ⬇️ دانلود قالب
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const form = document.getElementById('excel-upload-form');
+    const fileInput = document.getElementById('excel-file-input');
+    const submitBtn = document.getElementById('upload-submit-btn');
+    const progressBox = document.getElementById('upload-progress');
+    const successBox = document.getElementById('upload-success');
+    const errorBox = document.getElementById('upload-error');
+    const progressBar = document.getElementById('progress-bar');
+    const progressPercent = document.getElementById('progress-percent');
+    const progressPhase = document.getElementById('progress-phase');
+    const progressMessage = document.getElementById('progress-message');
+    const progressLog = document.getElementById('progress-log');
+    const errorMessage = document.getElementById('error-message');
+    const errorLog = document.getElementById('error-log');
+
+    const startUrl = "{% url 'purchases:upload_excel_start' %}";
+    const downloadUrlTemplate = "{% url 'purchases:download_uploaded_excel' '00000000_000000' %}".replace('00000000_000000', '__TOKEN__');
+
+    let pollTimer = null;
+    let lastLogCount = 0;
+
+    function faNum(n) {
+        const map = {'0':'۰','1':'۱','2':'۲','3':'۳','4':'۴','5':'۵','6':'۶','7':'۷','8':'۸','9':'۹'};
+        return String(n).replace(/[0-9]/g, d => map[d] || d);
+    }
+
+    function resetUI() {
+        successBox.classList.add('hidden');
+        errorBox.classList.add('hidden');
+        progressBox.classList.add('hidden');
+        progressLog.innerHTML = '';
+        errorLog.innerHTML = '';
+        lastLogCount = 0;
+        progressBar.style.width = '0%';
+    }
+
+    function appendLogs(container, logs, fromIndex) {
+        logs.slice(fromIndex).forEach(entry => {
+            const line = document.createElement('div');
+            const color = entry.level === 'error' ? 'text-rose-400'
+                : entry.level === 'success' ? 'text-emerald-400' : 'text-slate-300';
+            line.className = color;
+            line.textContent = `[${entry.time}] ${entry.message}`;
+            container.appendChild(line);
+        });
+        container.parentElement.scrollTop = container.parentElement.scrollHeight;
+    }
+
+    function showSuccess(result) {
+        progressBox.classList.add('hidden');
+        successBox.classList.remove('hidden');
+        document.getElementById('success-filename').textContent = result.original_name || '';
+        const stats = result.stats || {};
+        const exportStats = result.excel_export || {};
+        document.getElementById('stat-created').textContent = faNum(stats.created || 0);
+        document.getElementById('stat-updated').textContent = faNum(stats.updated || 0);
+        document.getElementById('stat-rows-updated').textContent = faNum(exportStats.rows_updated || 0);
+        document.getElementById('stat-rows-appended').textContent = faNum(exportStats.rows_appended || 0);
+        document.getElementById('download-link').href = downloadUrlTemplate.replace('__TOKEN__', result.token || '');
+    }
+
+    function showError(msg, logs, importErrors) {
+        progressBox.classList.add('hidden');
+        errorBox.classList.remove('hidden');
+        errorMessage.textContent = msg || 'خطای ناشناخته';
+        if (logs && logs.length) appendLogs(errorLog, logs, 0);
+        if (importErrors && importErrors.length) {
+            importErrors.forEach(err => {
+                const line = document.createElement('div');
+                line.textContent = err;
+                errorLog.appendChild(line);
+            });
+        }
+    }
+
+    function pollStatus(statusUrl) {
+        fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    clearInterval(pollTimer);
+                    showError(data.error || 'خطا در دریافت وضعیت');
+                    submitBtn.disabled = false;
+                    return;
+                }
+
+                const pct = data.percent || 0;
+                progressBar.style.width = pct + '%';
+                progressPercent.textContent = faNum(pct) + '٪';
+                progressPhase.textContent = data.phase_label || data.phase || '';
+                progressMessage.textContent = data.message || '';
+
+                const logs = data.logs || [];
+                if (logs.length > lastLogCount) {
+                    appendLogs(progressLog, logs, lastLogCount);
+                    lastLogCount = logs.length;
+                }
+
+                if (data.status === 'done') {
+                    clearInterval(pollTimer);
+                    submitBtn.disabled = false;
+                    if (data.result) showSuccess(data.result);
+                } else if (data.status === 'error') {
+                    clearInterval(pollTimer);
+                    submitBtn.disabled = false;
+                    showError(data.error, logs, data.import_errors);
+                }
+            })
+            .catch(err => {
+                clearInterval(pollTimer);
+                showError('خطا در ارتباط با سرور: ' + err.message);
+                submitBtn.disabled = false;
+            });
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!fileInput.files.length) return;
+
+        resetUI();
+        progressBox.classList.remove('hidden');
+        submitBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch(startUrl, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    showError(data.error || 'خطا در شروع آپلود');
+                    submitBtn.disabled = false;
+                    return;
+                }
+                progressLog.innerHTML = '';
+                lastLogCount = 0;
+                const statusUrl = data.status_url;
+                pollStatus(statusUrl);
+                pollTimer = setInterval(() => pollStatus(statusUrl), 800);
+            })
+            .catch(err => {
+                showError('خطا در آپلود فایل: ' + err.message);
+                submitBtn.disabled = false;
+            });
+    });
+})();
+</script>
+{% endblock %}

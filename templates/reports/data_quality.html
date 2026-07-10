@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}کیفیت داده{% endblock %}
+{% block page_title %}اعتبارسنجی اکسل با پنل{% endblock %}
+{% block page_subtitle %}مقایسه {{ sample_size|fa }} ردیف تصادفی از اکسل با دیتابیس{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <div class="flex flex-wrap gap-3 items-center justify-between">
+        {% include 'reports/_report_header.html' with show_export=False %}
+        <div class="flex gap-2 items-center flex-wrap">
+        {% include 'reports/_export_button.html' %}
+        <form method="get" class="flex gap-2 items-center flex-wrap">
+            <label class="text-xs text-slate-500">تعداد نمونه:</label>
+            <input type="number" name="n" value="{{ sample_size }}" min="1" max="50" class="form-input !w-20 !py-1.5 !text-xs">
+            <button type="submit" class="btn btn-primary !py-1.5 !text-xs">🎲 نمونه تصادفی جدید</button>
+        </form>
+        </div>
+        <p class="text-[10px] text-slate-400 w-full">هر بار ردیف‌های متفاوتی انتخاب می‌شوند (seed: {{ seed|fa }})</p>
+    </div>
+
+    {% if validation.error %}
+    <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">{{ validation.error }}</div>
+    {% else %}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <p class="kpi-label">ردیف‌های اکسل</p>
+            <p class="kpi-value">{{ validation.total_excel_rows|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #06b6d4">
+            <p class="kpi-label">نمونه بررسی‌شده</p>
+            <p class="kpi-value">{{ validation.sample_size|fa }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <p class="kpi-label">تأیید شده</p>
+            <p class="kpi-value text-emerald-600">{{ validation.passed|fa }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #ef4444">
+            <p class="kpi-label">مشکل‌دار</p>
+            <p class="kpi-value text-red-600">{{ validation.failed|fa }}</p>
+        </div>
+    </div>
+    <p class="text-xs text-slate-500">فایل: {{ validation.file_path }}</p>
+
+    {% for row in validation.rows %}
+    <div class="bg-white rounded-2xl border {% if row.ok %}border-emerald-200{% else %}border-red-200{% endif %} overflow-hidden">
+        <div class="px-5 py-3 flex flex-wrap justify-between items-center gap-2 {% if row.ok %}bg-emerald-50{% else %}bg-red-50{% endif %}">
+            <div>
+                <span class="font-bold text-slate-800">ردیف اکسل {{ row.excel_row|fa }}</span>
+                <span class="text-sm text-slate-600 mx-2">·</span>
+                <span class="text-sm">خرید <strong>{{ row.purchase_number|fa }}</strong> خط {{ row.line_number|fa }}</span>
+            </div>
+            <span class="badge {% if row.ok %}badge-green{% else %}badge-red{% endif %}">
+                {% if row.ok %}✅ صحیح{% else %}❌ مشکل{% endif %}
+            </span>
+        </div>
+        <div class="p-5 space-y-4">
+            <p class="text-sm text-slate-700 truncate" title="{{ row.product_title }}">{{ row.product_title|default:"—" }}</p>
+
+            {% if not row.found_in_db %}
+            <p class="text-red-600 text-sm font-medium">رکورد در دیتابیس یافت نشد</p>
+            {% else %}
+            <div class="flex flex-wrap gap-2 text-xs">
+                <a href="{% url 'purchases:detail' row.purchase_pk %}" class="btn btn-ghost !py-1 !px-2">جزئیات خرید</a>
+                <span class="badge badge-blue">وضعیت: {{ row.actual_status }}</span>
+                {% if not row.status_ok %}<span class="badge badge-red">وضعیت نادرست</span>{% endif %}
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="data-table text-xs">
+                    <thead>
+                        <tr><th>فیلد</th><th>اکسل</th><th>پنل</th><th>نتیجه</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for fc in row.field_checks %}
+                        <tr>
+                            <td>{{ fc.label }}</td>
+                            <td class="font-mono">{{ fc.excel_value|fa }}</td>
+                            <td class="font-mono">{{ fc.db_value|fa }}</td>
+                            <td>{% if fc.match %}<span class="text-emerald-600">✓</span>{% else %}<span class="text-red-600">✗</span>{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold text-slate-600 mb-2">جایگاه در منوها:</p>
+                <div class="flex flex-wrap gap-2">
+                    {% for mp in row.menu_placements %}
+                    <span class="text-xs px-2 py-1 rounded-lg border
+                        {% if mp.expected and mp.found %}border-emerald-200 bg-emerald-50 text-emerald-800
+                        {% elif mp.expected and not mp.found %}border-red-200 bg-red-50 text-red-800
+                        {% else %}border-slate-200 bg-slate-50 text-slate-600{% endif %}">
+                        {{ mp.section_label }}
+                        {% if mp.expected %}{% if mp.found %}✓{% else %}✗{% endif %}{% endif %}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if row.issues %}
+            <ul class="text-xs text-red-700 space-y-1 list-disc list-inside">
+                {% for issue in row.issues %}
+                <li>{{ issue }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

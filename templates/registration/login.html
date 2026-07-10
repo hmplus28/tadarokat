@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}ورود — سامانه تدارکات کلور{% endblock %}
+
+{% block anonymous_content %}
+<div class="w-full max-w-[420px]">
+    <div class="glass rounded-3xl p-8 md:p-10 text-white shadow-2xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <img src="{% static 'img/clever-logo.png' %}" alt="لوگوی کلور"
+                class="w-20 h-20 rounded-2xl object-contain bg-white mx-auto mb-5 p-2 ring-2 ring-white/30 shadow-lg">
+            <h1 class="text-2xl font-bold tracking-tight">سامانه تدارکات کلور</h1>
+            <p class="text-indigo-200/80 text-sm mt-2">شرکت کلور · مدیریت خرید و تدارکات</p>
+        </div>
+
+        <!-- Form -->
+        <form id="loginForm" method="post" action="{% url 'accounts:login' %}" class="space-y-4">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+            <div class="p-3 rounded-xl bg-red-500/20 border border-red-400/30 text-red-100 text-xs text-center">
+                ⚠️ نام کاربری یا رمز عبور اشتباه است
+            </div>
+            {% endif %}
+
+            {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+
+            <div>
+                <label class="text-xs text-indigo-200 mb-1.5 block font-medium">نام کاربری</label>
+                <input type="text" name="username" required autofocus value="{{ form.username.value|default:'' }}"
+                       class="w-full px-4 py-3 rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                       placeholder="admin" autocomplete="username">
+            </div>
+            
+            <div>
+                <label class="text-xs text-indigo-200 mb-1.5 block font-medium">رمز عبور</label>
+                <input type="password" name="password" required
+                       class="w-full px-4 py-3 rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                       placeholder="••••••••" autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="w-full py-3.5 bg-gradient-to-l from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl transition shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50">
+                ورود به سامانه
+            </button>
+        </form>
+
+        <!-- Footer -->
+        <p class="text-center text-indigo-300/60 text-xs mt-6">
+            © {% now "Y" %} سامانه تدارکات کلور · نسخه ۲.۰
+        </p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('loginForm');
+    if (!form) return;
+
+    form.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' || e.target.tagName === 'BUTTON') return;
+        e.preventDefault();
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+        } else {
+            form.submit();
+        }
+    });
+});
+</script>
+{% endblock %}

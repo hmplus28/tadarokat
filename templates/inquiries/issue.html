@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}صدور استعلام - خرید {{ purchase.purchase_number }}{% endblock %}
+{% block page_title %}صدور استعلام جدید{% endblock %}
+{% block page_subtitle %}درخواست خرید {{ purchase.purchase_number }} - {{ purchase.product_title|truncatechars:40 }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Back Button -->
+    <a href="{% url 'purchases:detail' purchase.pk %}" class="inline-flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+        ← بازگشت به جزئیات خرید
+    </a>
+
+    <!-- Purchase Summary Card -->
+    <div class="bg-gradient-to-l from-indigo-50 to-white rounded-xl shadow-sm border border-indigo-200 p-6">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xl shadow-sm flex-shrink-0">
+                📦
+            </div>
+            <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                    <h3 class="font-bold text-slate-800">درخواست خرید {{ purchase.purchase_number }}</h3>
+                    <span class="badge badge-blue">{{ purchase.current_status_fa }}</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <p class="text-xs text-slate-500">عنوان کالا</p>
+                        <p class="font-medium text-slate-800 truncate" title="{{ purchase.product_title }}">
+                            {{ purchase.product_title|default:"—" }}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500">کد کالا</p>
+                        <p class="font-medium text-slate-800 font-mono">{{ purchase.product_code|default:"—" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500">مقدار</p>
+                        <p class="font-bold text-indigo-600">{{ purchase.quantity }} {{ purchase.unit }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500">کارشناس</p>
+                        <p class="font-medium text-slate-800">{{ purchase.expert_name|default:"—" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-5 flex items-center gap-2">
+            <span>📝</span>
+            <span>اطلاعات استعلام</span>
+        </h3>
+
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                ⚠️ لطفاً خطاهای فرم را اصلاح کنید
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- شماره استعلام -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                        {{ form.inquiry_number.label }}
+                    </label>
+                    {{ form.inquiry_number }}
+                    <p class="text-xs text-slate-500 mt-1">{{ form.inquiry_number.help_text }}</p>
+                </div>
+
+                <!-- تاریخ -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                        {{ form.inquiry_date.label }}
+                    </label>
+                    {{ form.inquiry_date }}
+                </div>
+
+                <!-- مهلت -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                        {{ form.deadline.label }}
+                    </label>
+                    {{ form.deadline }}
+                </div>
+
+                <!-- نوع خرید -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                        {{ form.purchase_type.label }}
+                    </label>
+                    {{ form.purchase_type }}
+                </div>
+
+                <!-- فوریت -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                        {{ form.urgency_code.label }}
+                    </label>
+                    {{ form.urgency_code }}
+                </div>
+
+                <!-- انبار -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                        {{ form.warehouse.label }}
+                    </label>
+                    {{ form.warehouse }}
+                </div>
+            </div>
+
+            <!-- علت خرید -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                    {{ form.reason.label }}
+                </label>
+                {{ form.reason }}
+            </div>
+
+            <!-- ریسک -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                    {{ form.risk_note.label }}
+                </label>
+                {{ form.risk_note }}
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3 pt-4 border-t border-slate-200">
+                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition shadow-sm">
+                    ✅ صدور استعلام
+                </button>
+                <a href="{% url 'purchases:detail' purchase.pk %}" class="px-6 py-2.5 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 transition font-medium">
+                    انصراف
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

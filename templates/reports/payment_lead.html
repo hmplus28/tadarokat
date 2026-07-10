@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}لید تایم پرداخت{% endblock %}
+{% block page_title %}گزارش لید تایم پرداخت{% endblock %}
+{% block page_subtitle %}از ثبت واریزی (AP) تا انجام واریزی (AQ) — مهلت پیش‌فرض ۷ روز (قابل تنظیم per گروه){% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include 'reports/_report_header.html' %}
+
+    <div class="bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-950">
+        <p class="font-bold mb-1">منطق محاسبه</p>
+        <ul class="text-xs space-y-1 list-disc list-inside text-violet-900">
+            <li><strong>شروع:</strong> تاریخ ثبت واریزی (ستون AP)</li>
+            <li><strong>پایان:</strong> تاریخ انجام واریزی (ستون AQ)</li>
+            <li><strong>مهلت:</strong> بر اساس گروه کالایی — پیش‌فرض <strong>۷ روز</strong>{% if is_superuser %} (در <a href="{% url 'accounts:category_deadline_list' %}" class="underline font-bold">تنظیم مهلت گروه‌ها</a> قابل تغییر){% endif %}</li>
+            <li>اگر مدت واقعی &gt; مهلت → <strong>انحراف</strong></li>
+        </ul>
+    </div>
+
+    {% include 'reports/_date_filter_form.html' with filter_title="فیلتر و جستجو" clear_url=clear_url show_search=show_search filter_warning=filter_warning %}
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">📦</div>
+            <p class="kpi-label">بررسی‌شده</p>
+            <p class="kpi-value">{{ overall.evaluated|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">✓</div>
+            <p class="kpi-label">در مهلت</p>
+            <p class="kpi-value text-emerald-600">{{ overall.on_time|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #ef4444">
+            <div class="kpi-icon bg-red-100 text-red-600">⚠</div>
+            <p class="kpi-label">انحراف</p>
+            <p class="kpi-value text-red-600">{{ overall.deviated|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #f59e0b">
+            <div class="kpi-icon bg-amber-100 text-amber-600">%</div>
+            <p class="kpi-label">نرخ انحراف</p>
+            <p class="kpi-value text-amber-600">{{ overall.rate|fa }}٪</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #8b5cf6">
+            <div class="kpi-icon bg-violet-100 text-violet-600">⏱</div>
+            <p class="kpi-label">میانگین روز</p>
+            <p class="kpi-value text-violet-700">{% if overall.avg_days %}{{ overall.avg_days|fa }}{% else %}—{% endif %}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <h3 class="font-bold text-slate-800">به تفکیک گروه کالایی — روز، درصد و میانگین</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table text-xs">
+                <thead>
+                    <tr>
+                        <th>گروه کالایی</th>
+                        <th>مهلت (روز)</th>
+                        <th>بررسی</th>
+                        <th>در مهلت</th>
+                        <th>انحراف</th>
+                        <th>نرخ٪</th>
+                        <th>میانگین</th>
+                        <th>میانه</th>
+                        <th>بیشترین</th>
+                        {% for key, label, matcher in day_buckets %}
+                        <th>{{ label }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in category_stats %}
+                    {% if cat.evaluated > 0 %}
+                    <tr class="{% if cat.deviated > 0 %}bg-red-50/30{% endif %}">
+                        <td class="font-bold text-slate-800">
+                            {% if cat.deviated > 0 %}
+                            <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}cat_kind=payment&cat={{ cat.name|urlencode }}#cat-drilldown"
+                               class="text-indigo-700 hover:underline">{{ cat.name }}</a>
+                            {% else %}
+                            {{ cat.name }}
+                            {% endif %}
+                        </td>
+                        <td class="text-violet-700 font-bold">{{ cat.lead_days|fa }}</td>
+                        <td>{{ cat.evaluated|fa_comma }}</td>
+                        <td class="text-emerald-700 font-bold">{{ cat.on_time|fa_comma }}</td>
+                        <td class="text-red-700 font-bold">{{ cat.deviated|fa_comma }}</td>
+                        <td class="font-bold {% if cat.rate > 0 %}text-red-600{% else %}text-emerald-600{% endif %}">{{ cat.rate|fa }}٪</td>
+                        <td class="text-amber-700 font-bold">{% if cat.avg_days %}{{ cat.avg_days|fa }}{% else %}—{% endif %}</td>
+                        <td>{% if cat.median_days %}{{ cat.median_days|fa }}{% else %}—{% endif %}</td>
+                        <td>{% if cat.max_days %}{{ cat.max_days|fa }}{% else %}—{% endif %}</td>
+                        {% for key, label, matcher in day_buckets %}
+                        <td>{{ cat.buckets|dict_get:key|fa_comma }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endif %}
+                    {% empty %}
+                    <tr><td colspan="13" class="text-center text-slate-400 py-8">پرونده‌ای با هر دو تاریخ پرداخت نیست</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <p class="text-xs text-slate-500">روی کارت یا نام گروه‌های دارای انحراف کلیک کنید تا لیست پرونده‌ها با جزئیات نمایش داده شود.</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% for cat in category_stats %}
+        {% if cat.evaluated > 0 %}
+        {% if cat.deviated > 0 %}
+        <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}cat_kind=payment&cat={{ cat.name|urlencode }}#cat-drilldown"
+           class="block rounded-xl border p-4 border-red-200 bg-red-50/20 hover:ring-2 hover:ring-red-300 transition cursor-pointer {% if selected_cat == cat.name and selected_cat_kind == 'payment' %}ring-2 ring-red-500{% endif %}">
+        {% else %}
+        <div class="rounded-xl border p-4 border-emerald-200 bg-emerald-50/20">
+        {% endif %}
+            <div class="flex justify-between items-start mb-2">
+                <h4 class="font-bold text-slate-800 text-sm">{{ cat.name }}</h4>
+                <span class="badge {% if cat.deviated > 0 %}badge-amber{% else %}badge-green{% endif %} text-[10px]">{{ cat.rate|fa }}٪ انحراف</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-2">مهلت: {{ cat.lead_days|fa }} روز — میانگین واقعی: <strong class="text-violet-700">{% if cat.avg_days %}{{ cat.avg_days|fa }}{% else %}—{% endif %}</strong> روز</p>
+            <div class="flex justify-between text-xs">
+                <span class="text-emerald-700">✓ {{ cat.on_time|fa_comma }}</span>
+                <span class="text-red-700">⚠ {{ cat.deviated|fa_comma }}</span>
+            </div>
+            {% if cat.deviated > 0 %}
+            <p class="text-[10px] text-red-600 mt-2">کلیک برای مشاهده {{ cat.deviated|fa_comma }} پرونده انحرافی ←</p>
+        </a>
+            {% else %}
+        </div>
+            {% endif %}
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if selected_cat_kind == 'payment' %}
+    {% include 'reports/_category_deviation_drilldown.html' %}
+    {% endif %}
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-red-50/50 flex flex-wrap justify-between items-center gap-2">
+            <h3 class="font-bold text-slate-800">پرونده‌های دارای انحراف لید تایم</h3>
+            <span class="text-xs text-slate-500">{{ deviated_total|fa_comma }} پرونده — هر صفحه ۱۰۰ مورد</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table text-xs">
+                <thead>
+                    <tr>
+                        <th>شماره خرید</th>
+                        <th>گروه</th>
+                        <th>کارشناس</th>
+                        <th>ثبت (AP)</th>
+                        <th>انجام (AQ)</th>
+                        <th>روز واقعی</th>
+                        <th>مهلت</th>
+                        <th>تأخیر</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in page_obj %}
+                    <tr>
+                        <td class="font-bold text-indigo-600">{{ item.purchase_number|fa }}</td>
+                        <td>{{ item.product_category|default:"—" }}</td>
+                        <td>{{ item.expert_name|default:"—" }}</td>
+                        <td class="font-mono">{{ item.registration_date|fa }}</td>
+                        <td class="font-mono">{{ item.completion_date|fa }}</td>
+                        <td class="font-bold text-violet-700">{{ item.actual_days|fa }}</td>
+                        <td>{{ item.lead_days|fa }}</td>
+                        <td class="font-bold text-red-600">{{ item.over_days|fa }}</td>
+                        <td><a href="{% url 'purchases:detail' item.pk %}" class="text-indigo-600 hover:underline">جزئیات</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="text-center text-slate-400 py-6">انحرافی ثبت نشده</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.paginator.count > 0 %}
+        <div class="px-6 py-3.5 border-t border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
+            <span class="text-xs text-slate-500">
+                نمایش {{ page_obj.start_index|fa }} تا {{ page_obj.end_index|fa }} از {{ page_obj.paginator.count|fa_comma }}
+            </span>
+            {% if page_obj.has_other_pages %}
+            <div class="flex flex-wrap items-center gap-1.5">
+                {% if page_obj.has_previous %}
+                <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}"
+                   class="btn btn-ghost !py-1.5 !px-3 !text-xs">قبلی</a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-bold">
+                    {{ page_obj.number|fa }} / {{ page_obj.paginator.num_pages|fa }}
+                </span>
+                {% if page_obj.has_next %}
+                <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}"
+                   class="btn btn-ghost !py-1.5 !px-3 !text-xs">بعدی</a>
+                {% endif %}
+            </div>
+            {% else %}
+            <span class="text-xs text-slate-400">صفحه {{ page_obj.number|fa }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,605 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}جزئیات خرید {{ purchase.purchase_number }}{% endblock %}
+{% block page_title %}درخواست خرید {{ purchase.purchase_number }}{% endblock %}
+{% block page_subtitle %}{{ purchase.product_title|truncatechars:60 }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        border: 1px solid #e2e8f0;
+    }
+
+    .info-card h4 {
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.625rem 0;
+        border-bottom: 1px dashed #f1f5f9;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-row dt {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .info-row dd {
+        font-size: 0.875rem;
+        color: #1e293b;
+        font-weight: 600;
+        text-align: left;
+        max-width: 60%;
+    }
+
+    .info-row dd.mono {
+        font-family: 'Vazirmatn', 'Courier New', monospace;
+        font-size: 0.8125rem;
+    }
+
+    .info-row dd.highlight {
+        color: #4f46e5;
+        font-size: 1rem;
+    }
+
+    .info-row dd.success {
+        color: #059669;
+    }
+
+    .info-row dd.warning {
+        color: #d97706;
+    }
+
+    /* Timeline Styles */
+    .timeline-container {
+        position: relative;
+        padding: 2rem 0;
+    }
+
+    .timeline-line {
+        position: absolute;
+        top: 2rem;
+        right: 2rem;
+        left: 2rem;
+        height: 3px;
+        background: #e2e8f0;
+        z-index: 0;
+    }
+
+    .timeline-line-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981 0%, #4f46e5 100%);
+        transition: width 0.5s ease;
+    }
+
+    .timeline-step {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+    }
+
+    .timeline-circle {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        border: 4px solid;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        margin: 0 auto 0.5rem;
+        transition: all 0.3s;
+    }
+
+    .timeline-step.completed .timeline-circle {
+        background: #10b981;
+        border-color: #10b981;
+        color: white;
+    }
+
+    .timeline-step.current .timeline-circle {
+        background: white;
+        border-color: #4f46e5;
+        color: #4f46e5;
+        animation: pulse-ring 2s infinite;
+    }
+
+    .timeline-step.pending .timeline-circle {
+        background: white;
+        border-color: #e2e8f0;
+        color: #cbd5e1;
+        border-style: dashed;
+    }
+
+    @keyframes pulse-ring {
+        0% {
+            box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <a href="{% url 'purchases:list' %}"
+                class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 font-medium transition group">
+                <span class="group-hover:-translate-x-1 transition-transform">←</span>
+                بازگشت به لیست
+            </a>
+        </div>
+
+        <div class="flex items-center gap-3 flex-wrap">
+            {% if not is_requester_view %}
+            {% if is_superuser %}
+            <a href="{% url 'purchases:edit' purchase.pk %}" class="btn btn-ghost !py-2.5 !text-sm">
+                ✏️ تکمیل / ویرایش
+            </a>
+            {% endif %}
+            {% if related_inquiry %}
+            <a href="{% url 'inquiries:detail' related_inquiry.pk %}" class="btn btn-ghost !py-2.5 !text-sm">
+                🔍 مشاهده استعلام {{ related_inquiry.inquiry_number|fa }}
+            </a>
+            {% elif purchase.can_issue_inquiry %}
+            {% if user_role != 'warehouse' %}
+            <a href="{% url 'inquiries:issue' purchase.pk %}" class="btn btn-primary !py-2.5 !text-sm">
+                📄 صدور استعلام جدید
+            </a>
+            {% endif %}
+            {% endif %}
+            {% if can_issue_order %}
+            <a href="{% url 'orders:create' purchase.pk %}" class="btn btn-primary !py-2.5 !text-sm">
+                📝 صدور دستور خرید
+            </a>
+            {% elif related_order %}
+            <a href="{% url 'orders:detail' related_order.pk %}" class="btn btn-ghost !py-2.5 !text-sm">
+                📝 مشاهده دستور {{ related_order.order_number|fa }}
+            </a>
+            {% endif %}
+            {% endif %}
+
+            <div class="px-4 py-2 rounded-xl border-2 text-sm font-bold shadow-sm
+                {% if purchase.current_status == 'delivered' %}bg-emerald-50 border-emerald-200 text-emerald-700
+                {% elif purchase.current_status == 'paid' %}bg-violet-50 border-violet-200 text-violet-700
+                {% elif purchase.current_status == 'waiting_payment' %}bg-amber-50 border-amber-200 text-amber-700
+                {% elif purchase.current_status == 'order_placed' %}bg-blue-50 border-blue-200 text-blue-700
+                {% elif purchase.current_status == 'order_stopped' %}bg-red-50 border-red-200 text-red-700
+                {% elif purchase.current_status == 'order_issued' %}bg-purple-50 border-purple-200 text-purple-700
+                {% elif purchase.current_status == 'inquiry_issued' %}bg-blue-50 border-blue-200 text-blue-700
+                {% else %}bg-amber-50 border-amber-200 text-amber-700{% endif %}">
+                {{ purchase.current_status_fa }}
+            </div>
+        </div>
+    </div>
+
+    {% if is_superuser and purchase.has_placeholder_workflow_fields %}
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
+        <p class="font-bold mb-1">⚠️ فیلدهای ناقص یا placeholder اکسل</p>
+        <p class="text-xs text-amber-800 leading-relaxed mb-2">
+            بعضی فیلدهای این پرونده مقدار واقعی ندارند (مثلاً «در انتظار تکمیل روند خرید»).
+            برای جلوگیری از خطا در گردش کار، مقادیر را تکمیل کنید.
+        </p>
+        <a href="{% url 'purchases:edit' purchase.pk %}" class="btn btn-primary !py-1.5 !px-3 !text-xs">✏️ تکمیل فیلدها</a>
+    </div>
+    {% endif %}
+
+    <!-- Timeline -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <span class="w-1 h-5 bg-indigo-500 rounded-full"></span>
+            گردش کار پرونده
+        </h3>
+
+        <div class="timeline-container">
+            <div class="timeline-line">
+                <div class="timeline-line-fill" style="width: 
+                    {% if purchase.current_status == 'waiting_inquiry' %}5%
+                    {% elif purchase.current_status == 'inquiry_issued' %}20%
+                    {% elif purchase.current_status == 'order_issued' %}40%
+                    {% elif purchase.current_status == 'order_placed' %}55%
+                    {% elif purchase.current_status == 'waiting_payment' %}75%
+                    {% elif purchase.current_status == 'paid' %}90%
+                    {% elif purchase.current_status == 'delivered' %}100%
+                    {% else %}5%{% endif %};"></div>
+            </div>
+
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 relative">
+                <!-- مرحله 1: درخواست -->
+                <div class="timeline-step completed">
+                    <div class="timeline-circle">📥</div>
+                    <p class="text-xs font-bold">درخواست</p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ purchase.purchase_date|fa|default:"—" }}</p>
+                </div>
+
+                <!-- مرحله 2: استعلام -->
+                <div
+                    class="timeline-step {% if purchase.inquiry_number|has_workflow_value %}{% if purchase.current_status == 'inquiry_issued' %}current{% else %}completed{% endif %}{% else %}pending{% endif %}">
+                    <div class="timeline-circle">📋</div>
+                    <p class="text-xs font-bold">استعلام</p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ purchase.inquiry_number|workflow_display|fa }}</p>
+                </div>
+
+                <!-- مرحله 3: دستور خرید -->
+                <div
+                    class="timeline-step {% if purchase.order_number|has_workflow_value %}{% if purchase.current_status == 'order_issued' %}current{% else %}completed{% endif %}{% else %}pending{% endif %}">
+                    <div class="timeline-circle">📝</div>
+                    <p class="text-xs font-bold">دستور</p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ purchase.order_number|workflow_display|fa }}</p>
+                </div>
+
+                <!-- مرحله 4: سفارش -->
+                <div
+                    class="timeline-step {% if purchase.order_request_number|has_workflow_value %}{% if purchase.current_status == 'order_placed' %}current{% else %}completed{% endif %}{% else %}pending{% endif %}">
+                    <div class="timeline-circle">🛒</div>
+                    <p class="text-xs font-bold">سفارش</p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ purchase.order_request_number|workflow_display|fa }}</p>
+                </div>
+
+                <!-- مرحله 5: پرداخت -->
+                <div class="timeline-step {{ purchase|payment_timeline_state }}">
+                    <div class="timeline-circle">💰</div>
+                    <p class="text-xs font-bold">پرداخت</p>
+                    <p class="text-[10px] text-slate-400 mt-1">
+                        {% if purchase.current_status == 'waiting_payment' %}
+                        در انتظار پرداخت
+                        {% elif purchase.payment_request_number|has_workflow_value and 'تنخواه' in purchase.payment_request_number %}
+                        تنخواه
+                        {% elif purchase|payment_is_completed %}
+                        {{ purchase.payment_request_number|workflow_display|fa }}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </p>
+                </div>
+
+                <!-- مرحله 6: تحویل -->
+                <div
+                    class="timeline-step {% if purchase.delivery_number|has_workflow_value %}{% if purchase.current_status == 'delivered' %}current{% else %}completed{% endif %}{% else %}pending{% endif %}">
+                    <div class="timeline-circle">✅</div>
+                    <p class="text-xs font-bold">تحویل</p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ purchase.delivery_number|workflow_display|fa }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Info Grid -->
+    <div class="info-grid">
+
+        <!-- درخواست اولیه -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-indigo-500 rounded-full"></span> اطلاعات درخواست</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره درخواست خرید</dt>
+                    <dd class="highlight">{{ purchase.purchase_number|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>شماره درخواست کالا</dt>
+                    <dd class="mono">{{ purchase.base_number|fa|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ درخواست کالا</dt>
+                    <dd>
+                        {{ purchase.request_date|fa|default:"—" }}
+                        {% if deadline_detail.date_source == 'request_date' and purchase.product_category %}
+                        {% if purchase.deadline_deviated %}
+                        <span class="badge badge-red text-xs mr-2" title="{{ deadline_detail.rule_description }}">⚠ انحراف از مهلت</span>
+                        {% elif deadline_detail.effective_date %}
+                        <span class="badge badge-green text-xs mr-2">✓ به‌موقع</span>
+                        {% endif %}
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ درخواست</dt>
+                    <dd>
+                        {{ purchase.purchase_date|fa|default:"—" }}
+                        {% if deadline_detail.date_source == 'purchase_date' and purchase.product_category %}
+                        {% if purchase.deadline_deviated %}
+                        <span class="badge badge-red text-xs mr-2" title="{{ deadline_detail.rule_description }}">⚠ انحراف از مهلت (درخواست مستقیم)</span>
+                        {% elif deadline_detail.effective_date %}
+                        <span class="badge badge-green text-xs mr-2">✓ به‌موقع</span>
+                        {% endif %}
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="info-row">
+                    <dt>گروه بندی کالایی</dt>
+                    <dd>{{ purchase.product_category|default:"—" }}</dd>
+                </div>
+                {% if deadline_detail.rule_description %}
+                <div class="info-row">
+                    <dt>قانون مهلت</dt>
+                    <dd class="text-xs text-slate-600">{{ deadline_detail.rule_description }}</dd>
+                </div>
+                {% endif %}
+                {% if deadline_detail.allowed_days %}
+                <div class="info-row">
+                    <dt>مهلت‌های مجاز (ماه)</dt>
+                    <dd class="font-mono text-xs">{{ deadline_detail.allowed_days|join:"، " }}</dd>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <dt>تاریخ دریافت درخواست</dt>
+                    <dd>{{ purchase.inquiry_received_date|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>واحد تامین</dt>
+                    <dd>{{ purchase.supply_unit|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>درخواست کننده</dt>
+                    <dd>{{ purchase.requester|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ نیاز</dt>
+                    <dd class="warning">{{ purchase.required_date|fa|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- کالا -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-emerald-500 rounded-full"></span> مشخصات کالا</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>کد قلم خریدنی</dt>
+                    <dd class="mono">{{ purchase.product_code|fa|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>نام قلم خریدنی</dt>
+                    <dd style="max-width: 70%;">{{ purchase.product_title|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>واحد سنجش</dt>
+                    <dd>{{ purchase.unit|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>مقدار درخواست</dt>
+                    <dd class="highlight">{{ purchase.quantity|fa_comma }} {{ purchase.unit }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>مقدار تحویل</dt>
+                    <dd class="success">{{ purchase.delivered_quantity|fa_comma }} {{ purchase.unit }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>وضعیت درخواست</dt>
+                    <dd>
+                        {% if purchase.is_order_stopped %}<span class="badge badge-red">{{ purchase.display_status }}</span>
+                        {% elif purchase.display_status == 'بسته شده' %}<span class="badge badge-green">{{ purchase.display_status }}</span>
+                        {% elif purchase.display_status == 'در جريان' %}<span class="badge badge-blue">{{ purchase.display_status }}</span>
+                        {% else %}<span class="badge badge-slate">{{ purchase.display_status|default:"—" }}</span>{% endif %}
+                    </dd>
+                </div>
+                <div class="info-row">
+                    <dt>روند خرید</dt>
+                    <dd>{{ purchase.purchase_type|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- استعلام -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-blue-500 rounded-full"></span> استعلام</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره استعلام</dt>
+                    <dd class="{% if purchase.inquiry_number|has_workflow_value %}highlight{% endif %}">{{ purchase.inquiry_number|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>مهلت استعلام</dt>
+                    <dd class="warning">{{ purchase.inquiry_deadline|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>مهلت استعلام ۲</dt>
+                    <dd>{{ purchase.inquiry_deadline_2|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>کارشناس خرید</dt>
+                    <dd>{{ purchase.expert_name|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- پیش فاکتور -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-violet-500 rounded-full"></span> پیش فاکتور</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره پیش فاکتور</dt>
+                    <dd class="mono">{{ purchase.preinvoice_number|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>فی پیش فاکتور</dt>
+                    <dd class="mono">{% if purchase.preinvoice_price|has_workflow_value %}{{ purchase.preinvoice_price|fa_comma }}{% else %}—{% endif %}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>جمع پیش فاکتور (بدون ارزش افزوده)</dt>
+                    <dd class="highlight">{% if purchase.preinvoice_total|has_workflow_value %}{{ purchase.preinvoice_total|fa_comma }}{% else %}—{% endif %}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- دستور خرید -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-purple-500 rounded-full"></span> دستور خرید</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره دستور خرید</dt>
+                    <dd class="{% if purchase.order_number|has_workflow_value %}highlight{% endif %}">{{ purchase.order_number|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ دستور خرید</dt>
+                    <dd>{{ purchase.order_date|workflow_display|fa }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- سفارش -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-cyan-500 rounded-full"></span> سفارش</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره سفارش</dt>
+                    <dd class="{% if purchase.order_request_number|has_workflow_value %}highlight{% endif %}">{{ purchase.order_request_number|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>وضعیت سفارش</dt>
+                    <dd>{{ purchase.order_request_status|workflow_display }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ سفارش</dt>
+                    <dd>{{ purchase.order_request_date|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>جمع کل سفارش</dt>
+                    <dd class="highlight">{% if purchase.order_total|has_workflow_value %}{{ purchase.order_total|fa_comma }}{% else %}—{% endif %}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>مبلغ پیش پرداخت</dt>
+                    <dd>{% if purchase.advance_payment|has_workflow_value %}{{ purchase.advance_payment|fa_comma }}{% else %}—{% endif %}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>کسور</dt>
+                    <dd>{% if purchase.deductions|has_workflow_value %}{{ purchase.deductions|fa_comma }}{% else %}—{% endif %}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- تحویل -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-emerald-500 rounded-full"></span> تحویل</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره تحویل</dt>
+                    <dd class="{% if purchase.delivery_number|has_workflow_value %}success{% endif %}">{{ purchase.delivery_number|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ تحویل</dt>
+                    <dd class="success">{{ purchase.delivery_date|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تامین کننده</dt>
+                    <dd>{{ purchase.supplier|workflow_display }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- فاکتور -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-pink-500 rounded-full"></span> فاکتور</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>فی فاکتور</dt>
+                    <dd class="mono">{% if purchase.invoice_price|has_workflow_value %}{{ purchase.invoice_price|fa_comma }}{% else %}—{% endif %}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>شماره فاکتور</dt>
+                    <dd class="mono">{{ purchase.invoice_number|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>جمع کل فاکتور</dt>
+                    <dd class="highlight">{% if purchase.invoice_total|has_workflow_value %}{{ purchase.invoice_total|fa_comma }}{% else %}—{% endif %}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- پرداخت -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-amber-500 rounded-full"></span> پرداخت</h4>
+            {% if purchase.current_status == 'waiting_payment' %}
+            <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                درخواست پرداخت ثبت شده؛ واریز هنوز انجام نشده است.
+            </p>
+            {% endif %}
+            <dl>
+                <div class="info-row">
+                    <dt>مبلغ درخواست پرداخت</dt>
+                    <dd class="highlight">{% if purchase.payment_request_amount|has_workflow_value %}{{ purchase.payment_request_amount|fa_comma }}{% else %}—{% endif %}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>شماره درخواست پرداخت</dt>
+                    <dd class="mono">{{ purchase.payment_request_number|workflow_display|fa }}</dd>
+                </div>
+                {% if purchase|payment_is_completed %}
+                <div class="info-row">
+                    <dt>تاریخ ثبت واریزی</dt>
+                    <dd>{{ purchase.payment_registration_date|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ انجام واریزی</dt>
+                    <dd class="success">{{ purchase.payment_completion_date|workflow_display|fa }}</dd>
+                </div>
+                {% elif purchase.current_status == 'waiting_payment' %}
+                <div class="info-row">
+                    <dt>وضعیت واریز</dt>
+                    <dd class="warning">در انتظار انجام واریزی</dd>
+                </div>
+                {% else %}
+                <div class="info-row">
+                    <dt>تاریخ ثبت واریزی</dt>
+                    <dd>{{ purchase.payment_registration_date|workflow_display|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ انجام واریزی</dt>
+                    <dd>{{ purchase.payment_completion_date|workflow_display|fa }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+
+    </div>
+
+    <!-- توضیحات -->
+    {% if purchase.description %}
+    <div class="bg-slate-50 rounded-2xl border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm">
+            <span>📝</span> توضیحات درخواست خرید
+        </h3>
+        <div
+            class="text-sm text-slate-700 leading-loose whitespace-pre-line bg-white p-4 rounded-xl border border-slate-100">
+            {{ purchase.description }}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

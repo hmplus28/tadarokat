@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}گراف وضعیت خرید{% endblock %}
+{% block page_title %}گزارش گراف وضعیت درخواست‌های خرید{% endblock %}
+{% block page_subtitle %}گره‌ها و یال‌ها بر اساس وضعیت اکسل و ستون‌های خرید — روی هر گره کلیک کنید{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include 'reports/_report_header.html' %}
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-slate-800">گراف وضعیت خرید</h3>
+            <p class="text-sm text-slate-500">کل ردیف‌ها: <strong>{{ graph_total|fa_comma }}</strong></p>
+        </div>
+
+        {% if chart_nodes %}
+        <p class="text-xs text-slate-500 mb-3">برای مشاهده لیست ردیف‌ها روی هر گره کلیک کنید.</p>
+        <div class="overflow-auto rounded-xl border border-slate-100 bg-slate-50/40" style="max-height: 720px;">
+            <svg id="purchaseTreeChart"
+                 xmlns="http://www.w3.org/2000/svg"
+                 viewBox="0 0 {{ graph_width }} {{ graph_height }}"
+                 width="{{ graph_width }}"
+                 height="{{ graph_height }}"
+                 class="block min-w-full purchase-tree-graph"
+                 role="img"
+                 aria-label="گراف وضعیت درخواست‌های خرید">
+                <defs>
+                    <marker id="graph-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+
+                {% for link in chart_links %}
+                <line x1="{{ link.x1 }}" y1="{{ link.y1 }}"
+                      x2="{{ link.x2 }}" y2="{{ link.y2 }}"
+                      stroke="#94a3b8" stroke-width="{{ link.stroke_width }}"
+                      stroke-opacity="0.85" marker-end="url(#graph-arrow)"/>
+                {% endfor %}
+
+                {% for node in chart_nodes %}
+                <a href="?node={{ node.id }}"
+                   class="graph-node-link{% if selected_node == node.id %} is-selected{% endif %}"
+                   aria-label="{{ node.label }} — {{ node.value|fa_comma }} ردیف">
+                    <g class="graph-node" transform="translate({{ node.px }}, {{ node.py }})">
+                        <circle class="graph-node-circle" r="{{ node.radius }}"
+                                fill="{{ node.color }}" fill-opacity="0.92"
+                                stroke="#ffffff" stroke-width="2"/>
+                        <text class="graph-node-label" text-anchor="middle" y="{{ node.label_y }}"
+                              font-family="Vazirmatn, Tahoma, sans-serif" font-size="11"
+                              fill="#1e293b" pointer-events="none">{{ node.label }}</text>
+                        <text class="graph-node-count" text-anchor="middle" y="{{ node.value_y }}"
+                              font-family="Vazirmatn, Tahoma, sans-serif" font-size="11"
+                              font-weight="700" fill="#475569" pointer-events="none">{{ node.value|fa_comma }}</text>
+                    </g>
+                </a>
+                {% endfor %}
+            </svg>
+        </div>
+        {% else %}
+        <div class="text-center text-slate-400 py-16 border border-dashed border-slate-200 rounded-xl">
+            داده‌ای برای نمایش گراف وجود ندارد.
+        </div>
+        {% endif %}
+    </div>
+
+    {% if node_meta %}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="font-bold text-slate-800">{{ node_meta.label }}</h3>
+                {% if node_page_obj %}
+                <p class="text-xs text-slate-500 mt-1">
+                    نمایش {{ node_page_obj.start_index|fa }} تا {{ node_page_obj.end_index|fa }} از {{ node_page_obj.paginator.count|fa_comma }} ردیف
+                </p>
+                {% endif %}
+            </div>
+            <a href="{% url 'reports:purchase_tree' %}" class="text-xs text-slate-500 hover:text-indigo-600 font-medium">بستن جزئیات ✕</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table text-xs">
+                <thead>
+                    <tr>
+                        <th>شماره خرید</th>
+                        <th>خط</th>
+                        <th>کالا</th>
+                        <th>وضعیت اکسل</th>
+                        <th>وضعیت پنل</th>
+                        <th>سفارش</th>
+                        <th>دستور</th>
+                        <th>پیش‌فاکتور</th>
+                        <th>استعلام</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in node_purchases %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'purchases:detail' p.pk %}" class="font-mono font-bold text-indigo-600 hover:underline">
+                                {{ p.purchase_number|fa }}
+                            </a>
+                        </td>
+                        <td>{{ p.line_number|fa }}</td>
+                        <td class="max-w-[160px] truncate" title="{{ p.product_title }}">{{ p.product_title }}</td>
+                        <td>{{ p.status }}</td>
+                        <td>{{ p.current_status }}</td>
+                        <td class="font-mono">{{ p.order_request_number|fa }}</td>
+                        <td class="font-mono">{{ p.order_number|fa }}</td>
+                        <td class="font-mono">{{ p.preinvoice_number|fa }}</td>
+                        <td class="font-mono">{{ p.inquiry_number|fa }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="text-center text-slate-400 py-8">پرونده‌ای در این گره نیست</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if node_page_obj.paginator.num_pages > 1 %}
+        <div class="px-6 py-4 border-t border-slate-100 flex flex-wrap justify-center items-center gap-2 text-xs">
+            {% if node_page_obj.has_previous %}
+            <a href="?page={{ node_page_obj.previous_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">قبلی</a>
+            {% endif %}
+            <span class="px-3 py-1.5 text-slate-500">
+                صفحه {{ node_page_obj.number|fa }} از {{ node_page_obj.paginator.num_pages|fa }}
+            </span>
+            {% if node_page_obj.has_next %}
+            <a href="?page={{ node_page_obj.next_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}"
+               class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">بعدی</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .purchase-tree-graph .graph-node-link {
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .purchase-tree-graph .graph-node-circle {
+        transition: transform 0.15s ease, stroke-width 0.15s ease, filter 0.15s ease;
+    }
+    .purchase-tree-graph .graph-node-link:hover .graph-node-circle {
+        filter: brightness(1.08);
+        stroke: #c7d2fe;
+        stroke-width: 3;
+    }
+    .purchase-tree-graph .graph-node-link.is-selected .graph-node-circle {
+        stroke: #4f46e5;
+        stroke-width: 4;
+        filter: brightness(1.05);
+    }
+</style>
+{% endblock %}

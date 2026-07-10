@@ -1,0 +1,28 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خروج — سامانه تدارکات کلور</title>
+    <link rel="icon" href="{% static 'img/clever-logo.png' %}" type="image/png">
+    <script src="{% static 'vendor/tailwind/tailwindcdn.js' %}"></script>
+    <link href="{% static 'vendor/vazirmatn/vazirmatn.css' %}" rel="stylesheet">
+    <style>
+        body { font-family: 'Vazirmatn', Tahoma, sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md text-center">
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
+            <div class="text-5xl mb-4">👋</div>
+            <h1 class="text-xl font-bold text-slate-800 mb-2">با موفقیت خارج شدید</h1>
+            <p class="text-sm text-slate-500 mb-6">از سامانه تدارکات کلور خارج شدید.</p>
+            <a href="{% url 'accounts:login' %}"
+                class="inline-block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition">
+                ورود مجدد
+            </a>
+        </div>
+    </div>
+</body>
+</html>

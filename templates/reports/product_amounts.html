@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}گزارش ریالی کالا{% endblock %}
+{% block page_title %}گزارش ریالی به تفکیک کالا{% endblock %}
+{% block page_subtitle %}جمع بر اساس کد کالا — اول AJ (جمع کل فاکتور)، در غیر این صورت AA (جمع کل سفارش){% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include 'reports/_report_header.html' %}
+
+    <div class="bg-cyan-50 border border-cyan-200 rounded-xl p-4 text-sm text-cyan-950">
+        <p class="font-bold mb-1">منطق محاسبه مبلغ هر ردیف</p>
+        <ul class="text-xs space-y-1 list-disc list-inside text-cyan-900">
+            <li>برای هر <strong>کد قلم</strong>، مبالغ ردیف‌ها با هم جمع می‌شوند</li>
+            <li>اگر <strong>جمع کل فاکتور (ستون AJ)</strong> پر باشد → همان مبلغ ردیف</li>
+            <li>اگر AJ خالی باشد → <strong>جمع کل سفارش (ستون AA)</strong></li>
+            <li>فیلتر تاریخ بر اساس <strong>تاریخ درخواست (ستون D)</strong></li>
+        </ul>
+    </div>
+
+    {% include 'reports/_date_filter_form.html' with filter_title="فیلتر دوره و جستجو (کد/نام کالا)" clear_url=clear_url show_search=show_search filter_warning=filter_warning %}
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">💰</div>
+            <p class="kpi-label">جمع کل</p>
+            <p class="kpi-value text-emerald-700">{{ summary.grand_total|fa_compact }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">📦</div>
+            <p class="kpi-label">تعداد کالا</p>
+            <p class="kpi-value">{{ summary.product_count|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #06b6d4">
+            <div class="kpi-icon bg-cyan-100 text-cyan-600">🧾</div>
+            <p class="kpi-label">از فاکتور (AJ)</p>
+            <p class="kpi-value text-cyan-700">{{ summary.invoice_based_total|fa_compact }}</p>
+            <p class="text-[10px] text-slate-400 mt-1">{{ summary.invoice_lines|fa }} ردیف</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #8b5cf6">
+            <div class="kpi-icon bg-violet-100 text-violet-600">🛒</div>
+            <p class="kpi-label">از سفارش (AA)</p>
+            <p class="kpi-value text-violet-700">{{ summary.order_based_total|fa_compact }}</p>
+            <p class="text-[10px] text-slate-400 mt-1">{{ summary.order_lines|fa }} ردیف</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
+            <div>
+                <h3 class="font-bold text-slate-800">
+                    جمع مبالغ هر کالا
+                    {% if filter_params.period != 'all' or filter_params.search %}
+                    <span class="text-xs font-normal text-slate-500">— {{ filter_label }}{% if filter_params.search %} / «{{ filter_params.search }}»{% endif %}</span>
+                    {% endif %}
+                </h3>
+                <p class="text-[11px] text-slate-500 mt-1">
+                    {{ summary.group_count|fa_comma }} گروه کد — {{ summary.product_count|fa_comma }} کالا — پیش‌فرض جمع‌شونده
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" id="expandAllGroups" class="btn btn-secondary !py-1.5 !px-3 !text-xs">باز کردن همه</button>
+                <button type="button" id="collapseAllGroups" class="btn btn-secondary !py-1.5 !px-3 !text-xs">بستن همه</button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto" id="productGroupsContainer">
+            {% for group in summary.product_groups %}
+            <details class="product-group border-b border-slate-100 group/details">
+                <summary class="cursor-pointer select-none px-4 py-3 bg-slate-50/80 hover:bg-slate-100/80 transition list-none flex flex-wrap items-center gap-3 text-xs">
+                    <span class="inline-flex items-center gap-2 min-w-[120px]">
+                        <span class="text-slate-400 transition group-open/details:rotate-90">▸</span>
+                        <span class="font-mono font-bold text-indigo-700 text-sm">{{ group.prefix|fa }}</span>
+                    </span>
+                    <span class="font-bold text-emerald-700 min-w-[140px]">{{ group.amount|fa_compact }} <span class="text-[10px] text-slate-400 font-normal">ریال</span></span>
+                    <span class="text-slate-500">{{ group.product_count|fa_comma }} کالا · {{ group.line_count|fa_comma }} ردیف</span>
+                    <span class="flex items-center gap-1 text-slate-500 mr-auto">
+                        <span class="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <span class="block h-full bg-emerald-500" style="width: {% if group.share > 100 %}100{% else %}{{ group.share }}{% endif %}%"></span>
+                        </span>
+                        {{ group.share|fa }}٪
+                    </span>
+                </summary>
+                <div class="overflow-x-auto">
+                    <table class="data-table text-xs !mb-0">
+                        <thead>
+                            <tr class="bg-white">
+                                <th>کد قلم</th>
+                                <th>نام کالا</th>
+                                <th>جمع مبلغ (ریال)</th>
+                                <th>سهم٪</th>
+                                <th>از فاکتور (AJ)</th>
+                                <th>از سفارش (AA)</th>
+                                <th>ردیف‌ها</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in group.items %}
+                            <tr>
+                                <td class="font-mono font-bold text-indigo-700">{{ item.product_code|fa }}</td>
+                                <td class="text-slate-700 max-w-[220px] truncate" title="{{ item.product_title }}">{{ item.product_title }}</td>
+                                <td class="font-bold text-emerald-700">{{ item.amount|fa_comma }}</td>
+                                <td>
+                                    <div class="flex items-center gap-1">
+                                        <div class="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                            <div class="h-full bg-emerald-500" style="width: {% if item.share > 100 %}100{% else %}{{ item.share }}{% endif %}%"></div>
+                                        </div>
+                                        <span>{{ item.share|fa }}٪</span>
+                                    </div>
+                                </td>
+                                <td class="text-cyan-700">{% if item.invoice_amount %}{{ item.invoice_amount|fa_comma }}{% else %}—{% endif %}</td>
+                                <td class="text-violet-700">{% if item.order_amount %}{{ item.order_amount|fa_comma }}{% else %}—{% endif %}</td>
+                                <td class="text-slate-500">{{ item.line_count|fa_comma }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+            {% empty %}
+            <p class="text-center text-slate-400 py-10 text-sm">مبلغی در این بازه یافت نشد</p>
+            {% endfor %}
+        </div>
+
+        {% if summary.product_groups %}
+        <div class="px-6 py-3 bg-emerald-50 border-t border-emerald-100 flex flex-wrap justify-between gap-2 text-xs font-bold text-emerald-900">
+            <span>جمع کل</span>
+            <span>{{ summary.grand_total|fa_comma }} ریال</span>
+            <span class="text-cyan-800">AJ: {{ summary.invoice_based_total|fa_comma }}</span>
+            <span class="text-violet-800">AA: {{ summary.order_based_total|fa_comma }}</span>
+            <span class="text-slate-600">{{ summary.with_amount|fa_comma }} ردیف</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('productGroupsContainer');
+    if (!container) return;
+
+    document.getElementById('expandAllGroups')?.addEventListener('click', function() {
+        container.querySelectorAll('details.product-group').forEach(function(el) {
+            el.open = true;
+        });
+    });
+    document.getElementById('collapseAllGroups')?.addEventListener('click', function() {
+        container.querySelectorAll('details.product-group').forEach(function(el) {
+            el.open = false;
+        });
+    });
+});
+</script>
+{% endblock %}

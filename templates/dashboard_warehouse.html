@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}داشبورد انبار{% endblock %}
+{% block page_title %}داشبورد انباردار{% endblock %}
+{% block page_subtitle %}رسیدهای تحویل، اعلان‌ها و گردش کار — انبار {{ warehouse_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div class="kpi-card" style="--kpi-color: #06b6d4">
+            <div class="kpi-icon bg-cyan-100 text-cyan-600">📦</div>
+            <p class="kpi-label">رسیدهای تحویل</p>
+            <p class="kpi-value">{{ delivery_count|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">✅</div>
+            <p class="kpi-label">ثبت‌شده توسط شما</p>
+            <p class="kpi-value text-emerald-600">{{ my_deliveries|length|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #f59e0b">
+            <div class="kpi-icon bg-amber-100 text-amber-600">🔔</div>
+            <p class="kpi-label">اعلان خوانده‌نشده</p>
+            <p class="kpi-value text-amber-600">{{ unread_notifications|fa_comma }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- اعلان‌ها -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <span class="w-1 h-5 bg-amber-500 rounded-full"></span>
+                    اعلان‌ها
+                </h3>
+                {% if unread_notifications %}
+                <span class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                    {{ unread_notifications|fa }} جدید
+                </span>
+                {% endif %}
+            </div>
+            <div class="space-y-2 max-h-80 overflow-y-auto">
+                {% for n in recent_notifications %}
+                <a href="{{ n.reference_url|default:'#' }}"
+                   class="block p-3 rounded-xl border transition {% if not n.is_read %}bg-amber-50/60 border-amber-200 hover:bg-amber-50{% else %}bg-slate-50 border-slate-100 hover:bg-slate-100{% endif %}">
+                    <div class="flex justify-between gap-2 items-start">
+                        <span class="font-bold text-sm text-slate-800">{{ n.title }}</span>
+                        <span class="text-[10px] text-slate-400 whitespace-nowrap">{{ n.created_at|date:"Y/m/d H:i" }}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mt-1 leading-relaxed">{{ n.message|truncatechars:120 }}</p>
+                </a>
+                {% empty %}
+                <p class="text-sm text-slate-400 text-center py-6">اعلان جدیدی نیست</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- رسیدهای ثبت‌شده -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <span class="w-1 h-5 bg-emerald-500 rounded-full"></span>
+                    رسیدهای ثبت‌شده توسط شما
+                </h3>
+                <a href="{% url 'deliveries:list' %}" class="text-xs text-indigo-600 font-bold">همه رسیدها ←</a>
+            </div>
+            <div class="space-y-2">
+                {% for d in my_deliveries %}
+                <a href="{% url 'deliveries:detail' d.pk %}"
+                   class="block p-3 rounded-xl border border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50 transition">
+                    <div class="flex justify-between gap-2">
+                        <span class="font-bold text-sm text-emerald-700">{{ d.delivery_number|fa }}</span>
+                        <span class="text-[10px] text-slate-500">{{ d.delivery_date|fa|default:"—" }}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mt-1 truncate">{{ d.product_title }}</p>
+                    <div class="flex flex-wrap gap-2 mt-2 text-[10px]">
+                        {% if d.purchase %}
+                        <span class="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600">
+                            خرید {{ d.purchase.purchase_number|fa }}
+                        </span>
+                        <span class="bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 text-indigo-700 font-medium">
+                            {{ d.purchase.current_status_fa }}
+                        </span>
+                        {% endif %}
+                        {% if d.order %}
+                        <span class="bg-violet-50 px-2 py-0.5 rounded border border-violet-100 text-violet-700">
+                            {{ d.order.get_stage_display }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% empty %}
+                <p class="text-sm text-slate-400 text-center py-6">هنوز رسیدی ثبت نکرده‌اید</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-cyan-50 border border-cyan-200 rounded-xl p-4 text-sm text-cyan-950">
+        <p class="font-bold mb-1">راهنما</p>
+        <ul class="text-xs space-y-1 list-disc list-inside text-cyan-900">
+            <li>وقتی کارشناس <strong>درخواست کالا از انبار</strong> ثبت کند، اعلان دریافت می‌کنید</li>
+            <li>وقتی کالا <strong>پرداخت شود</strong> یا کارشناس <strong>تاریخ تحویل</strong> بزند، اعلان می‌آید</li>
+            <li>از لینک اعلان می‌توانید رسید تحویل ثبت کنید</li>
+            <li>در جزئیات هر رسید، <strong>گردش کار</strong> پرونده را می‌بینید (بدون اطلاعات پرداخت)</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

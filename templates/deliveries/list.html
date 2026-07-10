@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{% if is_warehouse_view %}رسیدهای تحویل{% else %}تحویل‌ها{% endif %}{% endblock %}
+{% block page_title %}{% if is_warehouse_view %}رسیدهای تحویل{% else %}تحویل‌ها{% endif %}{% endblock %}
+{% block page_subtitle %}
+{% if is_warehouse_view %}پیگیری رسیدهای ثبت‌شده و گردش کار — انبار {{ warehouse_name|default:"—" }}{% else %}پیگیری کالاهای وارد شده به انبار{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <!-- KPI Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">📦</div>
+            <p class="kpi-label">{% if is_warehouse_view %}کل رسیدها{% else %}کل تحویل‌ها{% endif %}</p>
+            <p class="kpi-value text-emerald-600">{{ total_count|default:0|fa_comma }}</p>
+        </div>
+        {% if is_warehouse_view %}
+        <div class="kpi-card" style="--kpi-color: #06b6d4">
+            <div class="kpi-icon bg-cyan-100 text-cyan-600">✅</div>
+            <p class="kpi-label">ثبت‌شده توسط شما</p>
+            <p class="kpi-value text-cyan-600">{{ my_count|default:0|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #8b5cf6">
+            <div class="kpi-icon bg-violet-100 text-violet-600">🏭</div>
+            <p class="kpi-label">انبار شما</p>
+            <p class="kpi-value text-violet-600 text-base">{{ warehouse_name|default:"—" }}</p>
+        </div>
+        {% else %}
+        <div class="kpi-card" style="--kpi-color: #3b82f6">
+            <div class="kpi-icon bg-blue-100 text-blue-600">🏭</div>
+            <p class="kpi-label">انبارهای فعال</p>
+            <p class="kpi-value text-blue-600">—</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #8b5cf6">
+            <div class="kpi-icon bg-violet-100 text-violet-600">🚚</div>
+            <p class="kpi-label">تحویل‌های امروز</p>
+            <p class="kpi-value text-violet-600">—</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <form method="get" class="flex gap-3 items-end">
+            <div class="flex-1">
+                <label class="form-label">جستجو</label>
+                <input type="text" name="search" value="{{ search }}" 
+                       placeholder="شماره خرید، شماره سفارش، تحویل، کالا..."
+                       class="form-input">
+            </div>
+            <button type="submit" class="btn btn-primary">اعمال فیلتر</button>
+            <a href="{% url 'deliveries:list' %}" class="btn btn-ghost" title="پاک کردن">✕</a>
+        </form>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="flex justify-between items-center">
+        <p class="text-sm text-slate-600">
+            <span class="font-bold text-slate-900">{{ page_obj.paginator.count|fa }}</span> رکورد یافت شد
+            {% if search %}<span class="text-slate-400 text-xs mr-1">· جستجو: "{{ search }}"</span>{% endif %}
+        </p>
+        {% if is_warehouse_view %}
+        <a href="{% url 'dashboard' %}" class="text-xs text-indigo-600 font-bold">داشبورد انبار ←</a>
+        {% endif %}
+    </div>
+
+    <!-- Data Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>شماره تحویل</th>
+                        <th>شماره دستور</th>
+                        <th>عنوان کالا</th>
+                        <th>مقدار</th>
+                        <th>انبار</th>
+                        <th>تاریخ تحویل</th>
+                        {% if is_warehouse_view %}
+                        <th>وضعیت گردش کار</th>
+                        <th>ثبت‌کننده</th>
+                        {% else %}
+                        <th>تحویل گیرنده</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in page_obj %}
+                    <tr onclick="window.location='{% url 'deliveries:detail' d.pk %}'" class="cursor-pointer hover:bg-slate-50 transition">
+                        <td class="font-bold text-emerald-600">{{ d.delivery_number|fa }}</td>
+                        <td class="text-indigo-600 font-medium">
+                            {% if d.order %}
+                                {{ d.order.order_number|fa }}
+                            {% elif d.purchase.order_number %}
+                                {{ d.purchase.order_number|fa }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="max-w-[250px] truncate" title="{{ d.product_title }}">{{ d.product_title|default:"—" }}</td>
+                        <td class="text-sm text-slate-700 tabular-nums">{{ d.quantity|fa_comma }} {{ d.unit }}</td>
+                        <td class="text-xs text-slate-600">{{ d.warehouse|default:"—" }}</td>
+                        <td class="text-xs text-slate-500 tabular-nums">{{ d.delivery_date|fa|default:"—" }}</td>
+                        {% if is_warehouse_view %}
+                        <td>
+                            {% if d.purchase %}
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded border
+                                {% if d.purchase.current_status == 'delivered' %}bg-emerald-50 border-emerald-200 text-emerald-700
+                                {% elif d.purchase.current_status == 'paid' %}bg-violet-50 border-violet-200 text-violet-700
+                                {% else %}bg-slate-50 border-slate-200 text-slate-600{% endif %}">
+                                {{ d.purchase.current_status_fa }}
+                            </span>
+                            {% elif d.order %}
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-indigo-50 border-indigo-200 text-indigo-700">
+                                {{ d.order.get_stage_display }}
+                            </span>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td class="text-xs text-slate-600">
+                            {% if d.created_by %}
+                                {{ d.created_by.get_full_name|default:d.created_by.username }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        {% else %}
+                        <td class="text-xs text-slate-600">{{ d.receiver|default:"—" }}</td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if is_warehouse_view %}8{% else %}7{% endif %}">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📦</div>
+                                <p class="font-bold text-slate-600 text-lg mb-1">
+                                    {% if is_warehouse_view %}رسیدی ثبت نشده است{% else %}تحویلی ثبت نشده است{% endif %}
+                                </p>
+                                <p class="text-sm">
+                                    {% if is_warehouse_view %}
+                                    با دریافت اعلان از کارشناس، رسید تحویل را ثبت کنید
+                                    {% else %}
+                                    ابتدا یک دستور خرید را به مرحله تحویل برسانید یا اکسل را sync کنید
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="px-5 py-3.5 border-t border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <span class="text-xs text-slate-500">
+                نمایش {{ page_obj.start_index|fa }} تا {{ page_obj.end_index|fa }} از {{ page_obj.paginator.count|fa_comma }}
+            </span>
+            <div class="flex gap-1.5">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}" 
+                   class="btn btn-ghost !py-1.5 !px-3 !text-xs">قبلی</a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-bold">
+                    {{ page_obj.number|fa }} / {{ page_obj.paginator.num_pages|fa }}
+                </span>
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}" 
+                   class="btn btn-ghost !py-1.5 !px-3 !text-xs">بعدی</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

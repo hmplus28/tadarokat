@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+
+{% block title %}استعلام {{ inquiry.inquiry_number }}{% endblock %}
+{% block page_title %}استعلام {{ inquiry.inquiry_number }}{% endblock %}
+{% block page_subtitle %}{{ inquiry.purchase.product_title|default:"" }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Back + Status -->
+    <div class="flex justify-between items-center">
+        <a href="{% url 'inquiries:list' %}" class="inline-flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+            ← بازگشت به لیست استعلام‌ها
+        </a>
+        <div class="flex items-center gap-3">
+            {% if inquiry.status == 'issued' %}
+                <span class="badge badge-blue text-sm px-4 py-1.5">📋 {{ inquiry.get_status_display }}</span>
+            {% elif inquiry.status == 'approved' %}
+                <span class="badge badge-green text-sm px-4 py-1.5">✅ {{ inquiry.get_status_display }}</span>
+            {% elif inquiry.status == 'rejected' %}
+                <span class="badge badge-red text-sm px-4 py-1.5">❌ {{ inquiry.get_status_display }}</span>
+            {% else %}
+                <span class="badge badge-slate text-sm px-4 py-1.5">{{ inquiry.get_status_display }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Inquiry Info -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="font-bold text-slate-800 mb-5 flex items-center gap-2">
+                <span>📋</span>
+                <span>اطلاعات استعلام</span>
+            </h3>
+            <dl class="space-y-3">
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">شماره استعلام</dt>
+                    <dd class="text-sm text-indigo-600 font-bold">{{ inquiry.inquiry_number }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">تاریخ صدور</dt>
+                    <dd class="text-sm text-slate-800">{{ inquiry.inquiry_date|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">مهلت پاسخ</dt>
+                    <dd class="text-sm text-slate-800">{{ inquiry.deadline|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">نوع خرید</dt>
+                    <dd class="text-sm text-slate-800">
+                        {% if inquiry.purchase_type %}
+                        <span class="badge badge-slate">{{ inquiry.purchase_type }}</span>
+                        {% else %}—{% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">فوریت</dt>
+                    <dd class="text-sm text-slate-800">
+                        {% if inquiry.urgency_code == 'آنی' %}
+                            <span class="badge badge-red">🚨 {{ inquiry.urgency_code }}</span>
+                        {% elif inquiry.urgency_code == 'فوری' %}
+                            <span class="badge badge-amber">⚡ {{ inquiry.urgency_code }}</span>
+                        {% else %}
+                            {{ inquiry.urgency_code|default:"عادی" }}
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">واحد تامین</dt>
+                    <dd class="text-sm text-slate-800">{{ inquiry.supply_unit|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">انبار مقصد</dt>
+                    <dd class="text-sm text-slate-800">{{ inquiry.warehouse|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">گروه بندی کالایی</dt>
+                    <dd class="text-sm text-slate-800">
+                        {% if inquiry.product_category %}
+                        <span class="badge badge-slate">{{ inquiry.product_category }}</span>
+                        {% else %}—{% endif %}
+                    </dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">شماره درخواست کالا از انبار</dt>
+                    <dd class="text-sm text-slate-800 font-mono">{{ inquiry.warehouse_request_number|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">تاریخ ثبت کالا از انبار</dt>
+                    <dd class="text-sm text-slate-800">{{ inquiry.warehouse_request_date|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2">
+                    <dt class="text-sm text-slate-500">صادر کننده</dt>
+                    <dd class="text-sm text-slate-800">{{ inquiry.issuer|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Purchase Info -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 class="font-bold text-slate-800 mb-5 flex items-center gap-2">
+                <span>📦</span>
+                <span>درخواست خرید مرتبط</span>
+            </h3>
+            <dl class="space-y-3">
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">شماره خرید</dt>
+                    <dd>
+                        <a href="{% url 'purchases:detail' inquiry.purchase.pk %}" class="text-sm text-indigo-600 hover:underline font-bold">
+                            {{ inquiry.purchase.purchase_number }} ←
+                        </a>
+                    </dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">عنوان کالا</dt>
+                    <dd class="text-sm text-slate-800 font-medium text-left max-w-[60%]">
+                        {{ inquiry.purchase.product_title|default:"—" }}
+                    </dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">کد کالا</dt>
+                    <dd class="text-sm text-slate-800 font-mono">{{ inquiry.purchase.product_code|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">مقدار درخواست</dt>
+                    <dd class="text-sm text-slate-800">
+                        <span class="font-bold text-indigo-600">{{ inquiry.purchase.quantity }}</span>
+                        <span class="text-xs text-slate-500 mr-1">{{ inquiry.purchase.unit }}</span>
+                    </dd>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <dt class="text-sm text-slate-500">درخواست کننده</dt>
+                    <dd class="text-sm text-slate-800">{{ inquiry.requester|default:inquiry.purchase.requester|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between py-2">
+                    <dt class="text-sm text-slate-500">کارشناس خرید</dt>
+                    <dd class="text-sm">
+                        {% if inquiry.expert_name %}
+                        <div class="inline-flex items-center gap-2">
+                            <div class="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
+                                {{ inquiry.expert_name|slice:":1" }}
+                            </div>
+                            <span class="text-slate-800 font-medium">{{ inquiry.expert_name }}</span>
+                        </div>
+                        {% else %}—{% endif %}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Reason & Risk -->
+    {% if inquiry.reason or inquiry.risk_note %}
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-5 flex items-center gap-2">
+            <span>📝</span>
+            <span>توضیحات تکمیلی</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% if inquiry.reason %}
+            <div>
+                <p class="text-xs text-slate-500 font-medium mb-2">علت خرید</p>
+                <div class="bg-slate-50 p-3 rounded-lg text-sm text-slate-700 leading-relaxed">
+                    {{ inquiry.reason }}
+                </div>
+            </div>
+            {% endif %}
+            {% if inquiry.risk_note %}
+            <div>
+                <p class="text-xs text-slate-500 font-medium mb-2">ریسک عدم خرید</p>
+                <div class="bg-amber-50 p-3 rounded-lg text-sm text-slate-700 leading-relaxed border-r-4 border-amber-400">
+                    {{ inquiry.risk_note }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if show_review_actions %}
+    <div class="space-y-3">
+        <div class="flex flex-wrap gap-2 justify-end">
+            <a href="{% url 'orders:create' inquiry.purchase.pk %}" class="btn btn-primary !py-2.5 !text-sm">
+                📝 صدور دستور خرید
+            </a>
+            <a href="{% url 'orders:review_queue' %}" class="btn btn-ghost !py-2.5 !text-sm border border-slate-200">
+                ⏳ صف بررسی
+            </a>
+        </div>
+        {% include 'orders/_review_actions_panel.html' with purchase_ids=purchase_ids next_url=review_next_url current_expert=current_expert expert_choices=expert_choices %}
+    </div>
+    {% endif %}
+
+    <!-- Metadata -->
+    <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+        <div class="flex flex-wrap gap-4 text-xs text-slate-500">
+            <span>🕐 ایجاد: {{ inquiry.created_at|date:"Y/m/d H:i" }}</span>
+            {% if inquiry.updated_at %}
+            <span>🔄 آخرین تغییر: {{ inquiry.updated_at|date:"Y/m/d H:i" }}</span>
+            {% endif %}
+            {% if inquiry.created_by %}
+            <span>👤 ایجاد کننده: {{ inquiry.created_by.username }}</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

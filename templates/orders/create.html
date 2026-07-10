@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}صدور دستور خرید{% endblock %}
+{% block page_title %}صدور دستور خرید{% endblock %}
+{% block page_subtitle %}خرید {{ purchase.purchase_number|fa }} - {{ purchase.product_title|truncatechars:40 }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+    <a href="{% url 'purchases:detail' purchase.pk %}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">← بازگشت به خرید</a>
+
+    <div class="bg-gradient-to-l from-indigo-50 to-white rounded-xl border border-indigo-200 p-6 flex items-start gap-4">
+        <div class="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xl flex-shrink-0">📦</div>
+        <div class="flex-1">
+            <h3 class="font-bold text-slate-800">خرید {{ purchase.purchase_number|fa }}</h3>
+            <p class="text-sm text-slate-600 mt-1">{{ purchase.product_title }}</p>
+            <p class="text-xs text-slate-500 mt-1">
+                {{ purchase.quantity|fa_comma }} {{ purchase.unit }}
+                {% if purchase.inquiry_number|has_workflow_value %}| استعلام {{ purchase.inquiry_number|fa }}{% endif %}
+                | کارشناس: {{ purchase.expert_name|default:"—" }}
+            </p>
+        </div>
+        <div class="text-left text-xs bg-white border border-indigo-100 rounded-lg px-3 py-2">
+            <p class="text-slate-500">شماره دستور (خودکار)</p>
+            <p class="font-bold text-indigo-700 text-sm">{{ auto_order_number|fa }}</p>
+            <p class="text-slate-500 mt-1">تاریخ صدور (خودکار)</p>
+            <p class="font-bold text-indigo-700 text-sm">{{ auto_order_date|fa }}</p>
+        </div>
+    </div>
+
+    {% if preinvoice_comparison %}
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3 flex items-center gap-2">
+            <span>⚖️</span> مقایسه قیمت پیمانکاران
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-600">
+                        <th class="p-2 text-right">انتخاب</th>
+                        <th class="p-2 text-right">پیمانکار</th>
+                        <th class="p-2 text-right">شماره پیش‌فاکتور</th>
+                        <th class="p-2 text-right">فی واحد</th>
+                        <th class="p-2 text-right">جمع کل</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in preinvoice_comparison %}
+                    <tr class="border-t border-slate-100 {% if row.is_lowest %}bg-emerald-50{% endif %}">
+                        <td class="p-2">
+                            <input type="radio" name="contractor_pick" value="{{ row.id }}"
+                                data-contractor="{{ row.contractor }}"
+                                data-unit-price="{{ row.unit_price }}"
+                                class="contractor-radio"
+                                {% if row.is_selected or row.is_lowest %}checked{% endif %}>
+                        </td>
+                        <td class="p-2 font-medium">
+                            {{ row.contractor }}
+                            {% if row.is_lowest %}<span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded mr-1">کمترین</span>{% endif %}
+                        </td>
+                        <td class="p-2 mono">{{ row.invoice_number|fa|default:"—" }}</td>
+                        <td class="p-2">{{ row.unit_price|fa_comma }}</td>
+                        <td class="p-2 font-bold">{{ row.total|fa_comma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if similar_purchases %}
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3 flex items-center gap-2">
+            <span>📚</span> سوابق خرید کالای مشابه
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-600">
+                        <th class="p-2 text-right">خرید</th>
+                        <th class="p-2 text-right">کالا</th>
+                        <th class="p-2 text-right">تامین‌کننده</th>
+                        <th class="p-2 text-right">دستور</th>
+                        <th class="p-2 text-right">فی</th>
+                        <th class="p-2 text-right">وضعیت</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sp in similar_purchases %}
+                    <tr class="border-t border-slate-100 hover:bg-slate-50">
+                        <td class="p-2">
+                            <a href="{% url 'purchases:detail' sp.pk %}" class="text-indigo-600 hover:underline font-medium">
+                                {{ sp.purchase_number|fa }}-{{ sp.line_number|fa }}
+                            </a>
+                        </td>
+                        <td class="p-2">{{ sp.product_title|truncatechars:35 }}</td>
+                        <td class="p-2">{{ sp.supplier|workflow_display|default:"—" }}</td>
+                        <td class="p-2 mono">{{ sp.order_number|workflow_display|fa }}</td>
+                        <td class="p-2">{% if sp.preinvoice_price|has_workflow_value %}{{ sp.preinvoice_price|fa_comma }}{% else %}—{% endif %}</td>
+                        <td class="p-2"><span class="badge badge-slate text-[10px]">{{ sp.current_status_fa }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if show_review_actions %}
+    {% include 'orders/_review_actions_panel.html' with purchase_ids=purchase_ids next_url=review_next_url current_expert=current_expert expert_choices=expert_choices %}
+    {% endif %}
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3">📝 اطلاعات دستور خرید</h3>
+        <form method="post" class="space-y-4" id="order-create-form">
+            {% csrf_token %}
+            {% if form.errors %}
+            <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">⚠️ لطفاً خطاها را اصلاح کنید</div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for field in form %}
+                <div class="{% if field.name == 'description' %}md:col-span-2{% endif %}">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.name == 'order_number' or field.name == 'order_date' %}
+                    <p class="text-[10px] text-slate-400 mt-1">به‌صورت خودکار پر می‌شود؛ در صورت نیاز قابل ویرایش است.</p>
+                    {% endif %}
+                    {% if field.errors %}<p class="text-xs text-red-500 mt-1">{{ field.errors.0 }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="flex gap-3 pt-4 border-t border-slate-200">
+                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition shadow-sm">✅ صدور دستور خرید</button>
+                <a href="{% url 'purchases:detail' purchase.pk %}" class="px-6 py-2.5 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 transition font-medium">انصراف</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const contractorInput = document.getElementById('id_contractor');
+    const unitPriceInput = document.getElementById('id_unit_price');
+    const radios = document.querySelectorAll('.contractor-radio');
+
+    function applySelection(radio) {
+        if (!radio || !contractorInput) return;
+        contractorInput.value = radio.dataset.contractor || '';
+        if (unitPriceInput && radio.dataset.unitPrice) {
+            unitPriceInput.value = radio.dataset.unitPrice;
+        }
+    }
+
+    radios.forEach(function (radio) {
+        radio.addEventListener('change', function () { applySelection(this); });
+        if (radio.checked) applySelection(radio);
+    });
+});
+</script>
+{% endblock %}

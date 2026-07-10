@@ -1,0 +1,277 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}سامانه تدارکات کلور{% endblock %}</title>
+    <link rel="icon" href="{% static 'img/clever-logo.png' %}" type="image/png">
+    <link rel="apple-touch-icon" href="{% static 'img/clever-logo.png' %}">
+    <script src="{% static 'vendor/tailwind/tailwindcdn.js' %}"></script>
+    <link href="{% static 'vendor/vazirmatn/vazirmatn.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'vendor/jalalidatepicker/jalalidatepicker.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 antialiased {{ role_classes }}">
+
+    {% if user.is_authenticated %}
+    <!-- ============ AUTHENTICATED LAYOUT ============ -->
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside
+            class="app-sidebar w-64 flex flex-col fixed h-screen right-0 top-0 z-30">
+            <div class="sidebar-brand px-6 py-6 border-b">
+                <div class="flex items-center gap-3">
+                    <img src="{% static 'img/clever-logo.png' %}" alt="کلور"
+                        class="w-10 h-10 rounded-xl object-contain bg-white shadow-md ring-2 ring-slate-100 p-0.5">
+                    <div class="min-w-0">
+                        <h1 class="font-extrabold text-slate-800 text-sm leading-tight tracking-tight">سامانه تدارکات کلور</h1>
+                        <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">نسخه ۲.۰</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-3 py-6 overflow-y-auto space-y-6">
+                <div class="sidebar-home">
+                    <div class="space-y-1">
+                        <a href="{% url 'dashboard' %}"
+                            class="sidebar-link sidebar-dashboard-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">📊</span> <span>داشبورد</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="requester-only">
+                    <p class="sidebar-section-label px-3 mb-3 text-[10px] font-black uppercase tracking-wider">پیگیری</p>
+                    <div class="space-y-1">
+                        <a href="{% url 'purchases:list' %}"
+                            class="sidebar-link requester-only {% if request.resolver_match.namespace == 'purchases' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">📋</span> <span>گردش کار خرید</span>
+                        </a>
+                    </div>
+                    <p class="px-3 mt-3 text-[10px] text-slate-400">حوزه: {{ requester_scope_label }}</p>
+                </div>
+
+                <div class="not-requester">
+                    <p class="sidebar-section-label px-3 mb-3 text-[10px] font-black uppercase tracking-wider">اصلی</p>
+                    <div class="space-y-1">
+                        <a href="{% url 'purchases:list' %}"
+                            class="sidebar-link not-warehouse {% if request.resolver_match.namespace == 'purchases' %}active{% endif %}"><span
+                                class="text-lg w-6 text-center">📋</span> <span>درخواست‌های خرید</span></a>
+                    </div>
+                </div>
+
+                <div class="not-warehouse not-requester">
+                    <p class="sidebar-section-label px-3 mb-3 text-[10px] font-black uppercase tracking-wider">فرآیند خرید</p>
+                    <div class="space-y-1">
+                        <a href="{% url 'purchases:list' %}?filter=no_inquiry" class="sidebar-link expert-only"><span
+                                class="text-lg w-6 text-center">📄</span> <span>صدور استعلام</span></a>
+                        <a href="{% url 'inquiries:list' %}"
+                            class="sidebar-link {% if request.resolver_match.namespace == 'inquiries' %}active{% endif %}"><span
+                                class="text-lg w-6 text-center">🔍</span> <span>استعلام‌ها</span></a>
+                        <a href="{% url 'orders:list' %}"
+                            class="sidebar-link {% if request.resolver_match.namespace == 'orders' and request.resolver_match.url_name != 'review_queue' %}active{% endif %}"><span
+                                class="text-lg w-6 text-center">📝</span> <span>دستور خرید</span></a>
+                        <a href="{% url 'orders:review_queue' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'review_queue' %}active{% endif %}"><span
+                                class="text-lg w-6 text-center">⏳</span> <span>بررسی صدور دستور</span></a>
+                        <a href="{% url 'deliveries:list' %}"
+                            class="sidebar-link {% if request.resolver_match.namespace == 'deliveries' %}active{% endif %}"><span
+                                class="text-lg w-6 text-center">🚚</span> <span>تحویل‌ها</span></a>
+                    </div>
+                </div>
+
+                <div class="warehouse-only">
+                    <p class="sidebar-section-label px-3 mb-3 text-[10px] font-black uppercase tracking-wider">انبار</p>
+                    <div class="space-y-1">
+                        <a href="{% url 'deliveries:list' %}"
+                            class="sidebar-link warehouse-only {% if request.resolver_match.namespace == 'deliveries' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">🚚</span> <span>رسیدهای تحویل</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="manager-only not-requester">
+                    <p class="sidebar-section-label px-3 mb-3 text-[10px] font-black uppercase tracking-wider">گزارش‌ها</p>
+                    <div class="space-y-1">
+                        <a href="{% url 'reports:purchase_report' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'purchase_report' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">📈</span> <span>گزارش جامع</span>
+                        </a>
+                        <p class="sidebar-sublabel">مهلت و زمان</p>
+                        <a href="{% url 'reports:deadline_deviation' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'deadline_deviation' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">⏱️</span> <span>انحراف مهلت</span>
+                        </a>
+                        <a href="{% url 'reports:payment_lead' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'payment_lead' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">⏳</span> <span>لید تایم پرداخت</span>
+                        </a>
+                        <p class="sidebar-sublabel">مالی</p>
+                        <a href="{% url 'reports:category_amounts' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'category_amounts' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">💰</span> <span>مبالغ گروه کالایی</span>
+                        </a>
+                        <a href="{% url 'reports:product_amounts' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'product_amounts' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">📦</span> <span>مبالغ ریالی کالا</span>
+                        </a>
+                        <a href="{% url 'reports:financial_loss' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'financial_loss' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">📉</span> <span>ضرر مالی</span>
+                        </a>
+                        <p class="sidebar-sublabel">تحلیلی</p>
+                        <a href="{% url 'reports:purchase_tree' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'purchase_tree' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">🔗</span> <span>گراف وضعیت خرید</span>
+                        </a>
+                        <a href="{% url 'reports:expert_performance' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'expert_performance' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">👥</span> <span>عملکرد کارشناسان</span>
+                        </a>
+                        <a href="{% url 'reports:data_quality' %}"
+                            class="sidebar-link manager-only {% if request.resolver_match.url_name == 'data_quality' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">🔍</span> <span>کیفیت داده</span>
+                        </a>
+                    </div>
+                </div>
+
+                {% if is_superuser %}
+                <div>
+                    <p class="sidebar-section-label px-3 mb-3 text-[10px] font-black uppercase tracking-wider">تنظیمات سیستم</p>
+                    <div class="space-y-1">
+                        <a href="{% url 'accounts:user_list' %}"
+                            class="sidebar-link {% if request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_edit' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">👥</span> <span>مدیریت کاربران</span>
+                        </a>
+                        <a href="{% url 'accounts:warehouse_list' %}"
+                            class="sidebar-link {% if request.resolver_match.url_name == 'warehouse_list' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">🏭</span> <span>انبارهای مقصد</span>
+                        </a>
+                        <a href="{% url 'accounts:category_deadline_list' %}"
+                            class="sidebar-link {% if request.resolver_match.url_name == 'category_deadline_list' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">⏱️</span> <span>گروه‌های کالایی</span>
+                        </a>
+                        <a href="{% url 'audit:list' %}"
+                            class="sidebar-link {% if request.resolver_match.namespace == 'audit' %}active{% endif %}">
+                            <span class="text-lg w-6 text-center">📜</span> <span>تاریخچه تغییرات</span>
+                        </a>
+                        <a href="{% url 'admin:index' %}" target="_blank" class="sidebar-link">
+                            <span class="text-lg w-6 text-center">⚙️</span> <span>پنل Django</span>
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </nav>
+
+            <div class="sidebar-footer border-t p-4 backdrop-blur-sm">
+                <div
+                    class="user-card flex items-center gap-3 p-2 rounded-xl transition-all duration-300 group">
+                    <div class="relative">
+                        <div
+                            class="w-10 h-10 avatar-gradient rounded-full flex items-center justify-center text-white text-sm font-black shadow-md ring-2 ring-white group-hover:scale-105 transition">
+                            {{ user.username|slice:":1"|upper }}
+                        </div>
+                        <div
+                            class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full">
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="user-name text-sm font-bold truncate">{{ user.get_full_name|default:user.username }}</p>
+                        <p class="user-role text-[10px] font-bold mt-0.5 px-1.5 py-0.5 rounded w-fit">
+                            {{ user.get_role_display }}</p>
+                    </div>
+                </div>
+                <a href="{% url 'accounts:profile' %}"
+                    class="profile-link flex items-center justify-center gap-2 w-full mt-3 px-3 py-2 text-xs rounded-lg transition font-bold border border-transparent">
+                    <span>👤</span> پروفایل من
+                </a>
+                <a href="{% url 'accounts:logout' %}"
+                    class="logout-link flex items-center justify-center gap-2 w-full mt-1 px-3 py-2 text-xs rounded-lg transition font-bold border border-transparent">
+                    <span>🚪</span> خروج از حساب
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 mr-64 flex flex-col min-h-screen">
+            <header
+                class="app-top-header px-8 py-4 sticky top-0 z-20 flex justify-between items-center">
+                <div>
+                    <h2 class="app-header-title text-xl font-extrabold tracking-tight">{% block page_title %}داشبورد{% endblock %}</h2>
+                    <p class="app-header-subtitle text-xs mt-0.5 font-medium">{% block page_subtitle %}نمای کلی{% endblock %}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative group cursor-pointer" onclick="toggleNotifications()">
+                        <div
+                            class="app-header-notif-btn w-9 h-9 rounded-full flex items-center justify-center transition">
+                            🔔</div>
+                        {% if unread_notifications > 0 %}
+                        <span
+                            class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">{{ unread_notifications }}</span>
+                        {% endif %}
+                        <div id="notifDropdown"
+                            class="hidden absolute left-0 top-12 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
+                            <div
+                                class="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                <span class="text-xs font-bold text-slate-700">اعلان‌ها</span>
+                            </div>
+                            <div id="notifList" class="max-h-64 overflow-y-auto">
+                                <p class="text-xs text-slate-400 text-center py-4">اعلان جدیدی نیست</p>
+                            </div>
+                        </div>
+                    </div>
+                    <span
+                        class="app-header-time text-xs font-mono px-2 py-1 rounded border">{% now "H:i" %}</span>
+                </div>
+            </header>
+
+            <div class="p-8 flex-1">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    {% else %}
+    <!-- ============ ANONYMOUS LAYOUT ============ -->
+    <div class="login-bg min-h-screen flex items-center justify-center p-4">
+        {% block anonymous_content %}
+        <div class="text-center text-slate-500">
+            <p>لطفاً وارد شوید</p>
+            <a href="{% url 'accounts:login' %}" class="text-indigo-600 hover:underline">ورود</a>
+        </div>
+        {% endblock %}
+    </div>
+    {% endif %}
+
+    {% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            {% for message in messages %}
+            TadarokatApp.toast.{{ message.tags }}("{{ message|escapejs }}");
+            {% endfor %}
+        });
+    </script>
+    {% endif %}
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="{% static 'vendor/jalalidatepicker/jalalidatepicker.min.js' %}"></script>
+    <script src="{% static 'js/app.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.jalaliDatepicker) {
+                jalaliDatepicker.startWatch({
+                    selector: '.jalali-date, [data-jdp]',
+                    autoHide: true,
+                    showTodayBtn: true,
+                });
+            }
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

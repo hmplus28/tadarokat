@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}دستورات خرید{% endblock %}
+{% block page_title %}{% if is_warehouse_view %}دستورات انبار{% else %}دستورات خرید{% endif %}{% endblock %}
+{% block page_subtitle %}{% if is_warehouse_view %}فقط دستورات پرداخت‌شده و تحویل‌شده{% else %}مدیریت و پیگیری دستورات صادر شده{% endif %}{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <!-- KPI Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">📝</div>
+            <p class="kpi-label">کل دستورات</p>
+            <p class="kpi-value">{{ page_obj.paginator.count }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #f59e0b">
+            <div class="kpi-icon bg-amber-100 text-amber-600">⏳</div>
+            <p class="kpi-label">در انتظار سفارش</p>
+            <p class="kpi-value text-amber-600">{{ pending_count|default:0 }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #8b5cf6">
+            <div class="kpi-icon bg-violet-100 text-violet-600">💰</div>
+            <p class="kpi-label">در انتظار پرداخت</p>
+            <p class="kpi-value text-violet-600">{{ payment_count|default:0 }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">✅</div>
+            <p class="kpi-label">تحویل شده</p>
+            <p class="kpi-value text-emerald-600">{{ delivered_count|default:0 }}</p>
+        </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-6">
+                <label class="form-label">جستجوی آزاد</label>
+                <input type="text" name="search" value="{{ search }}"
+                       placeholder="شماره خرید، شماره سفارش، دستور، کالا..."
+                       class="form-input">
+            </div>
+            <div class="md:col-span-3">
+                <label class="form-label">مرحله فعلی</label>
+                <select name="stage" class="form-input">
+                    <option value="">همه مراحل</option>
+                    {% for code, name in stage_choices %}
+                        <option value="{{ code }}" {% if code == stage %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="md:col-span-3 flex gap-2">
+                <button type="submit" class="btn btn-primary flex-1">اعمال فیلتر</button>
+                <a href="{% url 'orders:list' %}" class="btn btn-ghost" title="پاک کردن">✕</a>
+            </div>
+        </form>
+
+        <!-- Quick Filter Chips -->
+        <div class="pt-4 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-slate-400 font-semibold">فیلتر سریع:</span>
+            <a href="{% url 'orders:list' %}" class="chip {% if not stage %}active{% endif %}">📋 همه</a>
+            {% if not is_warehouse_view %}
+            <a href="?stage=order_issued" class="chip {% if stage == 'order_issued' %}active amber{% endif %}">📝 صدور دستور</a>
+            <a href="?stage=order_placed" class="chip {% if stage == 'order_placed' %}active blue{% endif %}">🛒 ثبت سفارش</a>
+            {% endif %}
+            <a href="?stage=payment" class="chip {% if stage == 'payment' %}active violet{% endif %}">💰 آماده تحویل</a>
+            <a href="?stage=delivered" class="chip {% if stage == 'delivered' %}active emerald{% endif %}">✅ تحویل شده</a>
+        </div>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="flex justify-between items-center flex-wrap gap-2">
+        <p class="text-sm text-slate-600">
+            <span class="font-bold text-slate-900">{{ page_obj.paginator.count }}</span> رکورد یافت شد
+            {% if search %}<span class="text-slate-400 text-xs mr-1">· جستجو: "{{ search }}"</span>{% endif %}
+        </p>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'orders:review_queue' %}"
+               class="btn btn-primary !py-2 !text-xs !bg-amber-600 hover:!bg-amber-700 manager-only">
+                ⏳ صف بررسی صدور دستور
+            </a>
+            <a href="{% url 'orders:export' %}{% if search %}?search={{ search }}{% endif %}{% if stage %}{% if search %}&{% else %}?{% endif %}stage={{ stage }}{% endif %}"
+               class="btn btn-success !py-2 !text-xs">
+                📥 خروجی اکسل
+            </a>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto" style="max-height: calc(100vh - 450px);">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>شماره دستور</th>
+                        <th>عنوان کالا</th>
+                        <th>{% if is_warehouse_view %}کارشناس{% else %}پیمانکار{% endif %}</th>
+                        <th>مبلغ</th>
+                        <th>تاریخ صدور</th>
+                        <th>مرحله</th>
+                        <th class="text-center">عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in page_obj %}
+                    <tr onclick="window.location='{% url 'orders:detail' o.pk %}'">
+                        <td class="font-bold text-indigo-600">{{ o.order_number }}</td>
+                        <td>
+                            <div class="truncate max-w-[250px] font-medium" title="{{ o.product_title }}">
+                                {{ o.product_title|default:"—" }}
+                            </div>
+                            {% if o.product_code %}
+                            <div class="text-[10px] text-slate-400 font-mono mt-0.5">{{ o.product_code }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if is_warehouse_view %}
+                                {% if o.expert_name %}
+                                <span class="text-xs text-slate-700 font-medium">{{ o.expert_name|truncatechars:24 }}</span>
+                                {% else %}
+                                <span class="text-slate-300">—</span>
+                                {% endif %}
+                            {% elif o.contractor %}
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm ring-1 ring-white">
+                                    {{ o.contractor|slice:":1" }}
+                                </div>
+                                <span class="text-xs text-slate-700">{{ o.contractor|truncatechars:20 }}</span>
+                            </div>
+                            {% else %}
+                            <span class="text-slate-300">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-xs font-mono tabular-nums text-slate-700">
+                            {{ o.total_price|floatformat:0 }}
+                            <div class="text-[10px] text-slate-400">ریال</div>
+                        </td>
+                        <td class="text-xs text-slate-500 tabular-nums whitespace-nowrap">{{ o.order_date|default:"—" }}</td>
+                        <td>
+                            {% if o.stage == 'delivered' %}
+                                <span class="badge badge-green">✅ {{ o.get_stage_display }}</span>
+                            {% elif o.stage == 'payment' %}
+                                <span class="badge badge-purple">💰 {{ o.get_stage_display }}</span>
+                            {% elif o.stage == 'order_placed' %}
+                                <span class="badge badge-blue">🛒 {{ o.get_stage_display }}</span>
+                            {% else %}
+                                <span class="badge badge-amber">📝 {{ o.get_stage_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center" onclick="event.stopPropagation()">
+                            <a href="{% url 'orders:detail' o.pk %}" class="btn btn-ghost !py-1 !px-2.5 !text-[11px]">جزئیات</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📝</div>
+                                <p class="font-bold text-slate-600 text-lg mb-1">دستور خریدی یافت نشد</p>
+                                <p class="text-sm">ابتدا یک استعلام صادر و تایید کنید</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="px-5 py-3.5 border-t border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <span class="text-xs text-slate-500">نمایش {{ page_obj.start_index }} تا {{ page_obj.end_index }} از {{ page_obj.paginator.count }}</span>
+            <div class="flex gap-1.5">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if stage %}&stage={{ stage }}{% endif %}"
+                   class="btn btn-ghost !py-1.5 !px-3 !text-xs">قبلی</a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-bold">
+                    {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                </span>
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if stage %}&stage={{ stage }}{% endif %}"
+                   class="btn btn-ghost !py-1.5 !px-3 !text-xs">بعدی</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}صف بررسی صدور دستور{% endblock %}
+{% block page_title %}بررسی و صدور دستور خرید{% endblock %}
+{% block page_subtitle %}ردیف‌های دارای استعلام — ارجاع کارشناس یا بازگشت استعلام{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div class="kpi-card" style="--kpi-color: #f59e0b">
+            <div class="kpi-icon bg-amber-100 text-amber-600">⏳</div>
+            <p class="kpi-label">در انتظار صدور دستور</p>
+            <p class="kpi-value text-amber-600">{{ pending_count|fa }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">👤</div>
+            <p class="kpi-label">کارشناسان فعال</p>
+            <p class="kpi-value">{{ expert_choices|length|fa }}</p>
+        </div>
+        <div class="kpi-card hidden md:block" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">✅</div>
+            <p class="kpi-label">صدور تکی</p>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">از ستون عملیات «صدور دستور» یا جزئیات خرید</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-5">
+                <label class="form-label">جستجو</label>
+                <input type="text" name="search" value="{{ search }}" class="form-input"
+                       placeholder="شماره خرید، شماره سفارش، استعلام، کالا...">
+            </div>
+            <div class="md:col-span-4">
+                <label class="form-label">کارشناس</label>
+                <select name="expert" class="form-input">
+                    <option value="">همه کارشناسان</option>
+                    {% for ex in expert_choices %}
+                    <option value="{{ ex.value }}" {% if ex.value == expert_filter %}selected{% endif %}>{{ ex.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="md:col-span-3 flex gap-2">
+                <button type="submit" class="btn btn-primary flex-1">اعمال</button>
+                <a href="{% url 'orders:review_queue' %}" class="btn btn-ghost">✕</a>
+            </div>
+        </form>
+    </div>
+
+    <form method="post" action="{% url 'orders:review_action' %}" id="bulk-review-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex flex-col lg:flex-row gap-4 lg:items-end justify-between">
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="form-label text-indigo-900">کارشناس مقصد</label>
+                    <select name="expert_name" class="form-input bg-white">
+                        <option value="">انتخاب کارشناس...</option>
+                        {% for ex in expert_choices %}
+                        <option value="{{ ex.value }}">{{ ex.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label text-indigo-900">توضیح / دلیل</label>
+                    <input type="text" name="note" class="form-input bg-white"
+                           placeholder="برای بازگشت استعلام، نوشتن دلیل الزامی است">
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
+                <button type="submit" name="action" value="reassign"
+                        class="btn btn-primary !bg-indigo-600 hover:!bg-indigo-700 !py-2.5"
+                        onclick="return bulkConfirm('reassign');">
+                    👤 ارجاع انتخاب‌شده‌ها
+                </button>
+                <button type="submit" name="action" value="return_inquiry"
+                        class="btn btn-ghost border border-rose-300 !text-rose-800 !py-2.5"
+                        onclick="return bulkConfirm('return');">
+                    🔄 استعلام مجدد
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-4">
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="w-10">
+                                <input type="checkbox" id="select-all" title="انتخاب همه">
+                            </th>
+                            <th>خرید</th>
+                            <th>کالا</th>
+                            <th>استعلام</th>
+                            <th>کارشناس</th>
+                            <th>انبار</th>
+                            <th class="text-center">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in pending_items %}
+                        <tr>
+                            <td onclick="event.stopPropagation()">
+                                <input type="checkbox" name="purchase_ids" value="{{ p.pk }}" class="row-check">
+                            </td>
+                            <td class="font-bold text-indigo-600">
+                                {{ p.purchase_number|fa }}-{{ p.line_number|fa }}
+                            </td>
+                            <td>
+                                <div class="truncate max-w-[220px] font-medium" title="{{ p.product_title }}">
+                                    {{ p.product_title|default:"—" }}
+                                </div>
+                                {% if p.product_code %}
+                                <div class="text-[10px] text-slate-400 font-mono">{{ p.product_code }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="font-mono text-sm">{{ p.inquiry_number|fa }}</td>
+                            <td>{{ p.expert_name|default:"—" }}</td>
+                            <td class="text-xs">{{ p.supply_unit|default:"—" }}</td>
+                            <td class="text-center whitespace-nowrap" onclick="event.stopPropagation()">
+                                <a href="{% url 'orders:create' p.pk %}" class="btn btn-primary !py-1 !px-2.5 !text-[11px]">
+                                    📝 صدور دستور
+                                </a>
+                                <a href="{% url 'purchases:detail' p.pk %}" class="btn btn-ghost !py-1 !px-2.5 !text-[11px]">جزئیات</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">✅</div>
+                                    <p class="font-bold text-slate-600">ردیفی در صف صدور دستور نیست</p>
+                                    <p class="text-sm text-slate-500">همه پرونده‌ها یا دستور دارند یا هنوز استعلام نشده‌اند</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAll = document.getElementById('select-all');
+    const checks = document.querySelectorAll('.row-check');
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            checks.forEach(function (c) { c.checked = selectAll.checked; });
+        });
+    }
+});
+
+function bulkConfirm(kind) {
+    const checked = document.querySelectorAll('.row-check:checked');
+    if (!checked.length) {
+        alert('حداقل یک ردیف انتخاب کنید.');
+        return false;
+    }
+    if (kind === 'return') {
+        const note = document.querySelector('#bulk-review-form input[name="note"]');
+        if (!note || !note.value.trim()) {
+            alert('برای بازگشت استعلام، نوشتن دلیل الزامی است.');
+            return false;
+        }
+        return confirm('ردیف‌های انتخاب‌شده برای استعلام مجدد برمی‌گردند. ادامه می‌دهید؟');
+    }
+    const expert = document.querySelector('#bulk-review-form select[name="expert_name"]');
+    if (!expert || !expert.value) {
+        alert('کارشناس مقصد را انتخاب کنید.');
+        return false;
+    }
+    return confirm('ارجاع ' + checked.length + ' ردیف به کارشناس جدید؟');
+}
+</script>
+{% endblock %}

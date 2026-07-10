@@ -1,0 +1,140 @@
+<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+    <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+        <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
+        {{ filter_title|default:"فیلتر تاریخ درخواست (ستون D)" }}
+    </h3>
+    <form method="get" class="space-y-4" id="reportFilterForm">
+        {% if show_search %}
+        <div class="flex flex-wrap gap-3 items-end pb-1 border-b border-slate-100">
+            <div class="flex-1 min-w-[200px]">
+                <label class="text-[11px] text-slate-500 block mb-1">جستجو</label>
+                <input type="search" name="q" value="{{ filter_params.search }}"
+                       placeholder="شماره خرید، شماره سفارش، کارشناس، گروه کالایی، کد یا عنوان کالا..."
+                       class="form-input !py-2 !text-sm w-full">
+            </div>
+            {% if filter_params.search %}
+            <a href="{{ clear_url }}{% if filter_params.period != 'all' %}?period={{ filter_params.period }}{% if filter_params.year %}&year={{ filter_params.year }}{% endif %}{% if filter_params.month %}&month={{ filter_params.month }}{% endif %}{% if filter_params.season %}&season={{ filter_params.season }}{% endif %}{% if filter_params.date_from %}&from={{ filter_params.date_from }}{% endif %}{% if filter_params.date_to %}&to={{ filter_params.date_to }}{% endif %}{% endif %}"
+               class="btn btn-ghost !py-2 !px-3 !text-xs">پاک کردن جستجو</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="flex flex-wrap gap-2">
+            <label class="inline-flex items-center gap-1.5 text-xs border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-50">
+                <input type="radio" name="period" value="all" class="period-radio" {% if filter_params.period == 'all' %}checked{% endif %}>
+                همه
+            </label>
+            <label class="inline-flex items-center gap-1.5 text-xs border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-50">
+                <input type="radio" name="period" value="month" class="period-radio" {% if filter_params.period == 'month' %}checked{% endif %}>
+                ماهانه
+            </label>
+            <label class="inline-flex items-center gap-1.5 text-xs border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-50">
+                <input type="radio" name="period" value="season" class="period-radio" {% if filter_params.period == 'season' %}checked{% endif %}>
+                فصلی
+            </label>
+            <label class="inline-flex items-center gap-1.5 text-xs border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-50">
+                <input type="radio" name="period" value="range" class="period-radio" {% if filter_params.period == 'range' %}checked{% endif %}>
+                بازه دلخواه
+            </label>
+        </div>
+
+        <div class="flex flex-wrap gap-3 items-end">
+            <div class="filter-panel filter-year" data-show-for="month,season" style="display:none">
+                <label class="text-[11px] text-slate-500 block mb-1">سال</label>
+                <input type="number" name="year" value="{{ filter_params.year|default:default_year }}"
+                       class="form-input !py-2 !text-sm w-28" min="1400" max="1450">
+            </div>
+
+            <div class="filter-panel filter-month" data-show-for="month" style="display:none">
+                <label class="text-[11px] text-slate-500 block mb-1">ماه</label>
+                <select name="month" class="form-input !py-2 !text-sm w-28">
+                    <option value="1" {% if filter_params.month == 1 %}selected{% endif %}>۱</option>
+                    <option value="2" {% if filter_params.month == 2 %}selected{% endif %}>۲</option>
+                    <option value="3" {% if filter_params.month == 3 %}selected{% endif %}>۳</option>
+                    <option value="4" {% if filter_params.month == 4 %}selected{% endif %}>۴</option>
+                    <option value="5" {% if filter_params.month == 5 %}selected{% endif %}>۵</option>
+                    <option value="6" {% if filter_params.month == 6 %}selected{% endif %}>۶</option>
+                    <option value="7" {% if filter_params.month == 7 %}selected{% endif %}>۷</option>
+                    <option value="8" {% if filter_params.month == 8 %}selected{% endif %}>۸</option>
+                    <option value="9" {% if filter_params.month == 9 %}selected{% endif %}>۹</option>
+                    <option value="10" {% if filter_params.month == 10 %}selected{% endif %}>۱۰</option>
+                    <option value="11" {% if filter_params.month == 11 %}selected{% endif %}>۱۱</option>
+                    <option value="12" {% if filter_params.month == 12 %}selected{% endif %}>۱۲</option>
+                </select>
+            </div>
+
+            <div class="filter-panel filter-season" data-show-for="season" style="display:none">
+                <label class="text-[11px] text-slate-500 block mb-1">فصل</label>
+                <select name="season" class="form-input !py-2 !text-sm w-36">
+                    {% for code, name, months in seasons %}
+                    <option value="{{ code }}" {% if filter_params.season == code %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-panel filter-range" data-show-for="range" style="display:none">
+                <label class="text-[11px] text-slate-500 block mb-1">از تاریخ</label>
+                <input type="text" name="from" value="{{ filter_params.date_from }}"
+                       placeholder="1405/01/01" class="form-input !py-2 !text-sm w-36 font-mono" dir="ltr" autocomplete="off">
+            </div>
+            <div class="filter-panel filter-range-end" data-show-for="range" style="display:none">
+                <label class="text-[11px] text-slate-500 block mb-1">تا تاریخ</label>
+                <input type="text" name="to" value="{{ filter_params.date_to }}"
+                       placeholder="1405/12/29" class="form-input !py-2 !text-sm w-36 font-mono" dir="ltr" autocomplete="off">
+            </div>
+
+            <div id="filterActions" class="flex gap-2" style="display:none">
+                <button type="submit" class="btn btn-primary !py-2 !px-4 !text-sm">اعمال فیلتر</button>
+                <a href="{{ clear_url }}" class="btn btn-ghost !py-2 !px-4 !text-sm">حذف فیلتر</a>
+            </div>
+        </div>
+        <p id="rangeHint" class="text-[11px] text-slate-500" style="display:none">
+            تاریخ شمسی با / وارد کنید — مثال: 1405/01/01 تا 1405/03/31
+        </p>
+    </form>
+    {% if filter_params.period != 'all' or filter_params.search %}
+    <p class="text-xs text-indigo-700 mt-3 font-medium">
+        فیلتر فعال: {{ filter_label }}
+        {% if filter_params.search %} — جستجو: «{{ filter_params.search }}»{% endif %}
+    </p>
+    {% endif %}
+    {% if filter_warning %}
+    <p class="text-xs text-amber-700 mt-2 font-medium">⚠ {{ filter_warning }}</p>
+    {% endif %}
+</div>
+<script>
+(function () {
+    const form = document.getElementById('reportFilterForm');
+    if (!form) return;
+
+    function selectedPeriod() {
+        return form.querySelector('input[name="period"]:checked')?.value || 'all';
+    }
+
+    function updateFilterPanels() {
+        const period = selectedPeriod();
+        const showFor = (names) => names.split(',').includes(period);
+
+        form.querySelectorAll('.filter-panel').forEach((panel) => {
+            const targets = panel.getAttribute('data-show-for') || '';
+            panel.style.display = showFor(targets) ? '' : 'none';
+        });
+
+        const actions = document.getElementById('filterActions');
+        const rangeHint = document.getElementById('rangeHint');
+        if (actions) {
+            const hasSearch = (form.querySelector('input[name="q"]')?.value || '').trim().length > 0;
+            actions.style.display = (period !== 'all' || hasSearch) ? '' : 'none';
+        }
+        if (rangeHint) {
+            rangeHint.style.display = period === 'range' ? '' : 'none';
+        }
+    }
+
+    form.querySelectorAll('.period-radio').forEach((radio) => {
+        radio.addEventListener('change', updateFilterPanels);
+    });
+
+    updateFilterPanels();
+})();
+</script>

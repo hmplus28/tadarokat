@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}ثبت تحویل{% endblock %}
+{% block page_title %}ثبت رسید تحویل{% endblock %}
+{% block page_subtitle %}دستور {{ order.order_number }} - {{ order.product_title|truncatechars:40 }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <a href="{% url 'orders:detail' order.pk %}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">← بازگشت به دستور</a>
+
+    <div class="bg-gradient-to-l from-emerald-50 to-white rounded-xl border border-emerald-200 p-6 flex items-start gap-4">
+        <div class="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-xl flex-shrink-0">📦</div>
+        <div>
+            <h3 class="font-bold text-slate-800">دستور {{ order.order_number }}</h3>
+            <p class="text-sm text-slate-600 mt-1">{{ order.product_title }}</p>
+            <p class="text-xs text-slate-500 mt-1">{{ order.quantity }} {{ order.unit }} | پیمانکار: {{ order.contractor|default:"—" }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3">📋 اطلاعات تحویل</h3>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            {% if form.errors %}
+            <div class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">⚠️ لطفاً خطاها را اصلاح کنید</div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for field in form %}
+                <div class="{% if field.name == 'description' %}md:col-span-2{% endif %}">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}<p class="text-xs text-red-500 mt-1">{{ field.errors.0 }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="flex gap-3 pt-4 border-t border-slate-200">
+                <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg transition shadow-sm">✅ ثبت تحویل</button>
+                <a href="{% url 'orders:detail' order.pk %}" class="px-6 py-2.5 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 transition font-medium">انصراف</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

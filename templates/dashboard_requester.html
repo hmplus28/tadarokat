@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}داشبورد درخواست‌دهنده{% endblock %}
+{% block page_title %}پیگیری درخواست‌های خرید{% endblock %}
+{% block page_subtitle %}حوزه {{ scope_label }} — گردش کار، مبالغ و شماره‌ها{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">📋</div>
+            <p class="kpi-label">کل درخواست‌ها</p>
+            <p class="kpi-value">{{ total_count|fa_comma }}</p>
+        </div>
+        {% for label, count in status_counts.items %}
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-slate-100 text-slate-600">📌</div>
+            <p class="kpi-label">{{ label }}</p>
+            <p class="kpi-value text-slate-700">{{ count|fa_comma }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-1 h-5 bg-indigo-500 rounded-full"></span>
+                آخرین درخواست‌ها
+            </h3>
+            <a href="{% url 'purchases:list' %}" class="text-xs text-indigo-600 font-bold">همه ←</a>
+        </div>
+        <div class="space-y-2">
+            {% for p in recent_purchases %}
+            <a href="{% url 'purchases:detail' p.pk %}"
+               class="block p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-indigo-50/40 transition">
+                <div class="flex justify-between gap-2 items-start">
+                    <span class="font-bold text-sm text-indigo-700">{{ p.purchase_number|fa }}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
+                        {{ p.current_status_fa }}
+                    </span>
+                </div>
+                <p class="text-xs text-slate-600 mt-1 truncate">{{ p.product_title }}</p>
+                <div class="flex flex-wrap gap-3 mt-2 text-[10px] text-slate-500">
+                    {% if p.product_category %}<span>گروه: {{ p.product_category }}</span>{% endif %}
+                    {% if p.order_total %}<span>سفارش: {{ p.order_total|fa_compact }}</span>{% endif %}
+                    {% if p.delivery_number %}<span>تحویل: {{ p.delivery_number|fa }}</span>{% endif %}
+                </div>
+            </a>
+            {% empty %}
+            <p class="text-sm text-slate-400 text-center py-8">درخواستی در حوزه شما یافت نشد</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-950">
+        <p class="font-bold mb-1">راهنما</p>
+        <ul class="text-xs space-y-1 list-disc list-inside text-indigo-900">
+            <li>فقط درخواست‌های مرتبط با <strong>{{ scope_label }}</strong> را می‌بینید</li>
+            <li>در جزئیات هر درخواست، گردش کار کامل با <strong>شماره‌ها و مبالغ</strong> نمایش داده می‌شود</li>
+            <li>فیلتر بر اساس گروه کالایی یا انبار مقصد استعلام/دستور</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

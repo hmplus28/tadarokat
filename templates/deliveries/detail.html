@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}جزئیات تحویل {{ delivery.delivery_number }}{% endblock %}
+{% block page_title %}تحویل {{ delivery.delivery_number }}{% endblock %}
+{% block page_subtitle %}{{ delivery.product_title|truncatechars:60 }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+    .info-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        border: 1px solid #e2e8f0;
+    }
+    .info-card h4 {
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.625rem 0;
+        border-bottom: 1px dashed #f1f5f9;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row dt {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+    .info-row dd {
+        font-size: 0.875rem;
+        color: #1e293b;
+        font-weight: 600;
+        text-align: left;
+        max-width: 60%;
+    }
+    .info-row dd.mono {
+        font-family: 'Vazirmatn', 'Courier New', monospace;
+        font-size: 0.8125rem;
+    }
+    .info-row dd.highlight {
+        color: #4f46e5;
+        font-size: 1rem;
+    }
+    .info-row dd.success {
+        color: #059669;
+    }
+    
+    /* Timeline */
+    .timeline-vertical {
+        position: relative;
+        padding-right: 2rem;
+    }
+    .timeline-vertical::before {
+        content: '';
+        position: absolute;
+        right: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e2e8f0;
+    }
+    .timeline-item {
+        position: relative;
+        padding-bottom: 1.5rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        right: -1.5rem;
+        top: 0.25rem;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid #10b981;
+    }
+    .timeline-item.pending::before {
+        border-color: #e2e8f0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <a href="{% url 'deliveries:list' %}" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 font-medium transition group">
+                <span class="group-hover:-translate-x-1 transition-transform">←</span>
+                بازگشت به لیست تحویل‌ها
+            </a>
+        </div>
+
+        <div class="px-4 py-2 rounded-xl border-2 text-sm font-bold shadow-sm bg-emerald-50 border-emerald-200 text-emerald-700">
+            ✅ تحویل شده
+        </div>
+    </div>
+
+    <!-- Main Info Grid -->
+    <div class="info-grid">
+
+        <!-- اطلاعات تحویل -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-emerald-500 rounded-full"></span> اطلاعات تحویل</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره تحویل</dt>
+                    <dd class="highlight">{{ delivery.delivery_number|fa }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ تحویل</dt>
+                    <dd class="success">{{ delivery.delivery_date|fa|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تحویل گیرنده</dt>
+                    <dd>{{ delivery.receiver|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>انبار مقصد</dt>
+                    <dd>{{ delivery.warehouse|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- اطلاعات کالا -->
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-indigo-500 rounded-full"></span> مشخصات کالا</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>عنوان کالا</dt>
+                    <dd style="max-width: 70%;">{{ delivery.product_title|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>مقدار تحویلی</dt>
+                    <dd class="highlight">{{ delivery.quantity|fa_comma }} {{ delivery.unit }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>تامین کننده</dt>
+                    <dd>{{ delivery.supplier|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- اطلاعات درخواست خرید -->
+        {% if delivery.purchase %}
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-blue-500 rounded-full"></span> درخواست خرید مرتبط</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره درخواست</dt>
+                    <dd>
+                        <a href="{% url 'purchases:detail' delivery.purchase.pk %}" class="text-indigo-600 hover:underline">
+                            {{ delivery.purchase.purchase_number|fa }}
+                        </a>
+                    </dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ درخواست</dt>
+                    <dd>{{ delivery.purchase.purchase_date|fa|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>کارشناس</dt>
+                    <dd>{{ delivery.purchase.expert_name|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+        {% endif %}
+
+        <!-- اطلاعات دستور خرید -->
+        {% if delivery.order %}
+        <div class="info-card">
+            <h4><span class="w-1 h-5 bg-purple-500 rounded-full"></span> دستور خرید مرتبط</h4>
+            <dl>
+                <div class="info-row">
+                    <dt>شماره دستور</dt>
+                    <dd>
+                        <a href="{% url 'orders:detail' delivery.order.pk %}" class="text-indigo-600 hover:underline">
+                            {{ delivery.order.order_number|fa }}
+                        </a>
+                    </dd>
+                </div>
+                <div class="info-row">
+                    <dt>تاریخ صدور</dt>
+                    <dd>{{ delivery.order.order_date|fa|default:"—" }}</dd>
+                </div>
+                <div class="info-row">
+                    <dt>پیمانکار</dt>
+                    <dd>{{ delivery.order.contractor|default:"—" }}</dd>
+                </div>
+            </dl>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- توضیحات -->
+    {% if delivery.description %}
+    <div class="bg-slate-50 rounded-2xl border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm">
+            <span>📝</span> توضیحات انباردار
+        </h3>
+        <div class="text-sm text-slate-700 leading-loose whitespace-pre-line bg-white p-4 rounded-xl border border-slate-100">
+            {{ delivery.description }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Timeline گردش کار -->
+    {% if delivery.purchase %}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <span class="w-1 h-5 bg-indigo-500 rounded-full"></span>
+            گردش کار پرونده
+        </h3>
+        
+        <div class="timeline-vertical">
+            <!-- مرحله 1: درخواست -->
+            <div class="timeline-item">
+                <div class="bg-slate-50 rounded-lg p-4">
+                    <p class="text-xs font-bold text-indigo-600 mb-1">مرحله ۱ · درخواست خرید</p>
+                    <p class="text-sm font-bold text-slate-800">شماره: {{ delivery.purchase.purchase_number|fa }}</p>
+                    <p class="text-xs text-slate-500 mt-1">{{ delivery.purchase.purchase_date|fa|default:"—" }}</p>
+                </div>
+            </div>
+            
+            <!-- مرحله 2: استعلام -->
+            {% if delivery.purchase.inquiry_number %}
+            <div class="timeline-item">
+                <div class="bg-slate-50 rounded-lg p-4">
+                    <p class="text-xs font-bold text-blue-600 mb-1">مرحله ۲ · استعلام</p>
+                    <p class="text-sm font-bold text-slate-800">شماره: {{ delivery.purchase.inquiry_number|fa }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="timeline-item pending">
+                <div class="bg-slate-50 rounded-lg p-4 opacity-50">
+                    <p class="text-xs font-bold text-slate-400 mb-1">مرحله ۲ · استعلام</p>
+                    <p class="text-sm text-slate-400">ثبت نشده</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- مرحله 3: دستور خرید -->
+            {% if delivery.purchase.order_number %}
+            <div class="timeline-item">
+                <div class="bg-slate-50 rounded-lg p-4">
+                    <p class="text-xs font-bold text-purple-600 mb-1">مرحله ۳ · دستور خرید</p>
+                    <p class="text-sm font-bold text-slate-800">شماره: {{ delivery.purchase.order_number|fa }}</p>
+                    <p class="text-xs text-slate-500 mt-1">{{ delivery.purchase.order_date|fa|default:"—" }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="timeline-item pending">
+                <div class="bg-slate-50 rounded-lg p-4 opacity-50">
+                    <p class="text-xs font-bold text-slate-400 mb-1">مرحله ۳ · دستور خرید</p>
+                    <p class="text-sm text-slate-400">ثبت نشده</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- مرحله 4: پرداخت -->
+            {% if delivery.purchase.payment_registration_date or delivery.purchase.payment_completion_date or delivery.purchase.payment_request_number %}
+            <div class="timeline-item">
+                <div class="bg-slate-50 rounded-lg p-4">
+                    <p class="text-xs font-bold text-violet-600 mb-1">مرحله ۴ · پرداخت</p>
+                    {% if is_warehouse_view %}
+                    <p class="text-sm font-bold text-slate-800">پرداخت انجام شده</p>
+                    {% else %}
+                    <p class="text-sm font-bold text-slate-800">شماره: {{ delivery.purchase.payment_request_number|fa|default:"—" }}</p>
+                    {% endif %}
+                    <p class="text-xs text-slate-500 mt-1">{{ delivery.purchase.payment_completion_date|fa|default:delivery.purchase.payment_registration_date|fa|default:"—" }}</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="timeline-item pending">
+                <div class="bg-slate-50 rounded-lg p-4 opacity-50">
+                    <p class="text-xs font-bold text-slate-400 mb-1">مرحله ۴ · پرداخت</p>
+                    <p class="text-sm text-slate-400">ثبت نشده</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- مرحله 5: تحویل -->
+            <div class="timeline-item">
+                <div class="bg-emerald-50 rounded-lg p-4 border-2 border-emerald-200">
+                    <p class="text-xs font-bold text-emerald-600 mb-1">مرحله ۵ · تحویل ✓</p>
+                    <p class="text-sm font-bold text-slate-800">شماره: {{ delivery.delivery_number|fa }}</p>
+                    <p class="text-xs text-slate-500 mt-1">{{ delivery.delivery_date|fa|default:"—" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

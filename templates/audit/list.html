@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}تاریخچه تغییرات{% endblock %}
+{% block page_title %}تاریخچه تغییرات{% endblock %}
+{% block page_subtitle %}لاگ کامل فعالیت‌های کاربران در سیستم{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <p class="kpi-label">کل فعالیت‌ها</p>
+            <p class="kpi-value">{{ stats.total|default:0 }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <p class="kpi-label">ایجاد</p>
+            <p class="kpi-value text-emerald-600">{{ stats.creates|default:0 }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #3b82f6">
+            <p class="kpi-label">ویرایش</p>
+            <p class="kpi-value text-blue-600">{{ stats.updates|default:0 }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #ef4444">
+            <p class="kpi-label">حذف</p>
+            <p class="kpi-value text-red-600">{{ stats.deletes|default:0 }}</p>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    {% if daily_dates %}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-indigo-500 rounded-full"></span>
+            روند فعالیت‌ها (روزانه)
+        </h3>
+        <div class="h-64">
+            <canvas id="dailyChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-3">
+                <label class="form-label">جستجو</label>
+                <input type="text" name="search" value="{{ search }}" class="form-input" placeholder="شرح، کاربر...">
+            </div>
+            <div class="md:col-span-2">
+                <label class="form-label">نوع عملیات</label>
+                <select name="action" class="form-input">
+                    <option value="">همه</option>
+                    {% for code, name in action_choices %}
+                        <option value="{{ code }}" {% if code == action %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="form-label">نوع موجودیت</label>
+                <select name="entity_type" class="form-input">
+                    <option value="">همه</option>
+                    {% for et in entity_types %}
+                        <option value="{{ et }}" {% if et == entity_type %}selected{% endif %}>{{ et }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="form-label">کاربر</label>
+                <input type="text" name="user" value="{{ user_filter }}" class="form-input" placeholder="نام کاربری">
+            </div>
+            <div class="md:col-span-2">
+                <label class="form-label">بازه زمانی</label>
+                <select name="days" class="form-input">
+                    <option value="7" {% if days == '7' %}selected{% endif %}>۷ روز اخیر</option>
+                    <option value="30" {% if days == '30' %}selected{% endif %}>۳۰ روز اخیر</option>
+                    <option value="90" {% if days == '90' %}selected{% endif %}>۹۰ روز اخیر</option>
+                    <option value="365" {% if days == '365' %}selected{% endif %}>یک سال اخیر</option>
+                </select>
+            </div>
+            <div class="md:col-span-1 flex gap-2">
+                <button type="submit" class="btn btn-primary flex-1">فیلتر</button>
+                <a href="{% url 'audit:list' %}" class="btn btn-ghost">✕</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <p class="text-sm text-slate-600"><span class="font-bold">{{ page_obj.paginator.count }}</span> لاگ</p>
+        </div>
+        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>زمان</th>
+                        <th>کاربر</th>
+                        <th>عملیات</th>
+                        <th>موجودیت</th>
+                        <th>شناسه</th>
+                        <th>جزئیات</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in page_obj %}
+                    <tr>
+                        <td class="text-xs text-slate-500 whitespace-nowrap tabular-nums">{{ log.created_at|date:"Y/m/d H:i" }}</td>
+                        <td>
+                            {% if log.user %}
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 avatar-gradient rounded-full flex items-center justify-center text-white text-[10px] font-black">
+                                    {{ log.user.username|slice:":1"|upper }}
+                                </div>
+                                <span class="text-xs">{{ log.user.username }}</span>
+                            </div>
+                            {% else %}<span class="text-slate-400 text-xs">سیستم</span>{% endif %}
+                        </td>
+                        <td>
+                            {% with action_colors="create:emerald,update:blue,delete:red,login:purple,logout:slate,export:amber,issue:cyan,advance:pink" %}
+                                {% if log.action == 'create' %}
+                                    <span class="badge badge-green">{{ log.get_action_display }}</span>
+                                {% elif log.action == 'update' %}
+                                    <span class="badge badge-blue">{{ log.get_action_display }}</span>
+                                {% elif log.action == 'delete' %}
+                                    <span class="badge badge-red">{{ log.get_action_display }}</span>
+                                {% elif log.action == 'issue' %}
+                                    <span class="badge badge-purple">{{ log.get_action_display }}</span>
+                                {% else %}
+                                    <span class="badge badge-slate">{{ log.get_action_display }}</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-xs font-medium text-slate-700">{{ log.entity_type }}</td>
+                        <td class="text-xs font-mono text-slate-500">{{ log.entity_id }}</td>
+                        <td class="text-xs text-slate-600 max-w-[250px] truncate" title="{{ log.entity_repr }}">
+                            {{ log.entity_repr|truncatechars:40 }}
+                            {% if log.field_name %}
+                                <div class="text-[10px] text-slate-400 mt-0.5">
+                                    {{ log.field_name }}: {{ log.old_value|truncatechars:15 }} → {{ log.new_value|truncatechars:15 }}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td class="text-xs text-slate-400 font-mono">{{ log.ip_address|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📜</div>
+                                <p class="font-bold text-slate-600">لاگی یافت نشد</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="px-5 py-3 border-t border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <span class="text-xs text-slate-500">نمایش {{ page_obj.start_index }} تا {{ page_obj.end_index }}</span>
+            <div class="flex gap-1.5">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if action %}&action={{ action }}{% endif %}{% if entity_type %}&entity_type={{ entity_type }}{% endif %}{% if days %}&days={{ days }}{% endif %}" class="btn btn-ghost !py-1.5 !px-3 !text-xs">قبلی</a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-bold">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if action %}&action={{ action }}{% endif %}{% if entity_type %}&entity_type={{ entity_type }}{% endif %}{% if days %}&days={{ days }}{% endif %}" class="btn btn-ghost !py-1.5 !px-3 !text-xs">بعدی</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if daily_dates %}
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<script>
+    const dates = {{ daily_dates|tojson|safe }};
+    const counts = {{ daily_counts|tojson|safe }};
+    
+    new Chart(document.getElementById('dailyChart'), {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'تعداد فعالیت',
+                data: counts,
+                borderColor: '#4f46e5',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#4f46e5',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { rtl: true, textDirection: 'rtl' }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { font: { family: 'Vazir', size: 10 } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: 'Vazir', size: 10 }, maxRotation: 45 }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

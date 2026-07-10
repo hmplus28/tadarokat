@@ -1,0 +1,1161 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}صدور استعلام - Wizard{% endblock %}
+{% block page_title %}صدور استعلام جدید{% endblock %}
+{% block page_subtitle %}خرید {{ purchase.purchase_number }} - {{ purchase.product_title|truncatechars:40 }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .wizard-card { transition: all 0.3s; }
+    .wizard-card.active { border-color: #4f46e5; background: linear-gradient(135deg, #eef2ff 0%, white 100%); }
+    .wizard-card.completed { border-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, white 100%); }
+    .preinvoice-card { border: 2px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; transition: all 0.2s; }
+    .preinvoice-card.selected { border-color: #10b981; background: #f0fdf4; }
+    .line-row { background: #f8fafc; border-radius: 0.5rem; padding: 0.75rem; margin-top: 0.5rem; }
+    .wizard-export-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+    }
+    .wizard-export-bar .export-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-left: 0.25rem;
+    }
+    .invoice-type-badge {
+        display: inline-block;
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+    }
+    .invoice-type-official { background: #ede9fe; color: #6d28d9; }
+    .invoice-type-national { background: #ecfdf5; color: #047857; }
+    #lastPurchaseModal { display: none; }
+    #lastPurchaseModal.open { display: flex; }
+    .compare-table-wrap {
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background: #fff;
+    }
+    .compare-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8125rem;
+    }
+    .compare-table th,
+    .compare-table td {
+        padding: 0.65rem 0.85rem;
+        border-bottom: 1px solid #f1f5f9;
+        text-align: center;
+        vertical-align: middle;
+    }
+    .compare-table th.compare-label-col,
+    .compare-table td.compare-label-col {
+        text-align: right;
+        font-weight: 600;
+        color: #64748b;
+        background: #f8fafc;
+        min-width: 7.5rem;
+        white-space: nowrap;
+    }
+    .compare-table thead th {
+        background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+        color: #334155;
+        font-weight: 700;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .compare-table th.compare-winner {
+        background: linear-gradient(180deg, #ecfdf5 0%, #f0fdf4 100%);
+        border-bottom-color: #86efac;
+    }
+    .compare-table tr.compare-meta-row td {
+        background: #fafafa;
+        font-size: 0.75rem;
+    }
+    .compare-table tr.compare-meta-row td.compare-label-col {
+        background: #f1f5f9;
+        color: #475569;
+    }
+    .compare-table tr.compare-section-row td {
+        background: #eef2ff;
+        color: #4338ca;
+        font-weight: 800;
+        font-size: 0.7rem;
+        text-align: right;
+        letter-spacing: 0.03em;
+    }
+    .compare-table tr.compare-product-row:hover td {
+        background: #f8fafc;
+    }
+    .compare-table tr.compare-total-row td {
+        background: #f8fafc;
+        font-weight: 700;
+    }
+    .compare-table tr.compare-total-row td.compare-best {
+        color: #059669;
+        background: #ecfdf5;
+    }
+    .compare-contractor-name {
+        font-weight: 800;
+        color: #1e293b;
+        font-size: 0.85rem;
+    }
+    .compare-contractor-sub {
+        font-size: 0.65rem;
+        color: #94a3b8;
+        margin-top: 0.15rem;
+    }
+    .compare-winner-tag {
+        display: inline-block;
+        margin-top: 0.25rem;
+        font-size: 0.6rem;
+        font-weight: 700;
+        color: #047857;
+        background: #d1fae5;
+        padding: 0.1rem 0.45rem;
+        border-radius: 9999px;
+    }
+    .preinvoice-compare-box {
+        background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+    }
+    .preinvoice-compare-title {
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: #475569;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Wizard Steps Indicator -->
+    <div class="wizard-steps mb-6">
+        <button type="button" id="step1Btn" class="wizard-step-btn active" onclick="goToStep(1)">
+            <span class="ml-2">۱</span> اطلاعات استعلام
+        </button>
+        <button type="button" id="step2Btn" class="wizard-step-btn" onclick="goToStep(2)" disabled>
+            <span class="ml-2">۲</span> پیش‌فاکتور پیمانکاران
+        </button>
+        <button type="button" id="step3Btn" class="wizard-step-btn" onclick="goToStep(3)" disabled>
+            <span class="ml-2">۳</span> مقایسه و تایید
+        </button>
+    </div>
+
+    <!-- Purchase Summary -->
+    <div class="bg-gradient-to-l from-indigo-50 to-white rounded-xl border border-indigo-200 p-5 mb-6 flex items-start gap-4">
+        <div class="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xl flex-shrink-0">📦</div>
+        <div class="flex-1">
+            <h3 class="font-bold text-slate-800">خرید {{ purchase.purchase_number }}</h3>
+            <p class="text-sm text-slate-600 mt-1">{{ purchase.product_title }}</p>
+            <div class="grid grid-cols-3 gap-4 mt-3 text-xs">
+                <div><span class="text-slate-500">کد:</span> <span class="font-mono">{{ purchase.product_code|default:"—" }}</span></div>
+                <div><span class="text-slate-500">مقدار:</span> <span class="font-bold text-indigo-600">{{ purchase.quantity }} {{ purchase.unit }}</span></div>
+                <div><span class="text-slate-500">کارشناس:</span> <span class="font-medium">{{ purchase.expert_name|default:"—" }}</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 1: Header Information -->
+    <div id="step1" class="wizard-card bg-white rounded-2xl border-2 border-slate-200 p-6">
+        <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">📋</span>
+            اطلاعات استعلام
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">شماره استعلام</label>
+                <input id="inquiryNumber" class="form-input" placeholder="خودکار">
+            </div>
+            <div>
+                <label class="form-label">تاریخ استعلام *</label>
+                <input id="inquiryDate" class="form-input jalali-date" data-jdp placeholder="1405/04/10">
+            </div>
+            <div>
+                <label class="form-label">مهلت پاسخ *</label>
+                <input id="deadline" class="form-input jalali-date" data-jdp placeholder="1405/04/25">
+            </div>
+            <div>
+                <label class="form-label">نوع خرید *</label>
+                <select id="purchaseType" class="form-input">
+                    <option value="استعلامی">استعلامی</option>
+                    <option value="کارپردازی">کارپردازی</option>
+                    <option value="مناقصه">مناقصه</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">فوریت</label>
+                <select id="urgencyCode" class="form-input">
+                    <option value="عادی">عادی</option>
+                    <option value="فوری">فوری</option>
+                    <option value="آنی">آنی</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">واحد تامین</label>
+                <input id="supplyUnit" class="form-input" value="{{ purchase.supply_unit|default:'تدارکات داخلی' }}">
+            </div>
+            <div>
+                <label class="form-label">انبار مقصد *</label>
+                <select id="warehouse" class="form-input" required>
+                    <option value="">انتخاب انبار...</option>
+                    {% for wh in warehouses %}
+                    <option value="{{ wh.name }}">{{ wh.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">گروه بندی کالایی *</label>
+                <select id="productCategory" class="form-input" required>
+                    <option value="">انتخاب گروه...</option>
+                    {% for cat in product_categories %}
+                    <option value="{{ cat.name }}" {% if purchase.product_category == cat.name %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label">شماره درخواست کالا از انبار</label>
+                <input id="warehouseRequestNumber" class="form-input" value="{{ purchase.base_number|default:'' }}" placeholder="از اکسل یا دستی">
+            </div>
+            <div>
+                <label class="form-label">تاریخ ثبت کالا از انبار</label>
+                <input id="warehouseRequestDate" class="form-input jalali-date" data-jdp value="{{ purchase.request_date|default:'' }}" placeholder="از اکسل یا دستی">
+            </div>
+            <div>
+                <label class="form-label">درخواست دهنده</label>
+                <input id="requester" class="form-input" value="{{ purchase.requester }}">
+            </div>
+            <div class="md:col-span-3">
+                <label class="form-label">علت خرید</label>
+                <textarea id="reason" class="form-input" rows="2" placeholder="دلیل نیاز به این خرید..."></textarea>
+            </div>
+            <div class="md:col-span-3">
+                <label class="form-label">ریسک عدم خرید</label>
+                <textarea id="riskNote" class="form-input" rows="2" placeholder="در صورت عدم خرید چه اتفاقی می‌افتد..."></textarea>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+            <a href="{% url 'purchases:list' %}" class="btn btn-ghost">انصراف</a>
+            <button type="button" onclick="validateStep1()" class="btn btn-primary">
+                ادامه به پیش‌فاکتورها ←
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 2: Pre-Invoices -->
+    <div id="step2" class="wizard-card bg-white rounded-2xl border-2 border-slate-200 p-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <span class="w-8 h-8 bg-violet-100 text-violet-600 rounded-lg flex items-center justify-center">💼</span>
+                پیش‌فاکتور پیمانکاران
+            </h3>
+            <button type="button" onclick="addPreInvoice()" class="btn btn-primary !py-2 !text-xs">
+                + افزودن پیمانکار
+            </button>
+        </div>
+
+        <div id="preInvoiceContainer" class="space-y-4">
+            <!-- Pre-invoice cards will be added here dynamically -->
+        </div>
+
+        <div id="preInvoiceCompareSummary" class="hidden mt-5"></div>
+
+        <div class="flex justify-between gap-2 mt-6 pt-4 border-t border-slate-100">
+            <button type="button" onclick="goToStep(1)" class="btn btn-ghost">→ بازگشت</button>
+            <button type="button" onclick="validateStep2()" class="btn btn-primary">
+                ادامه به مقایسه ←
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 3: Compare & Submit -->
+    <div id="step3" class="wizard-card bg-white rounded-2xl border-2 border-slate-200 p-6 hidden">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <span class="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center">📊</span>
+                مقایسه پیش‌فاکتورها
+            </h3>
+            <div class="wizard-export-bar">
+                <span class="export-label">خروجی:</span>
+                <button type="button" onclick="printPreInvoices()" class="btn btn-ghost !py-2 !px-3 !text-xs" title="چاپ جدول مقایسه و پیش‌فاکتورها">
+                    🖨️ چاپ پیش‌فاکتور
+                </button>
+                <button type="button" onclick="exportPreInvoicesExcel()" class="btn btn-ghost !py-2 !px-3 !text-xs" title="دانلود فایل اکسل">
+                    📥 خروجی اکسل
+                </button>
+            </div>
+        </div>
+
+        <div id="comparisonTable" class="overflow-x-auto mb-6">
+            <!-- Comparison table will be rendered here -->
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" id="confirmCheckbox" class="mt-1">
+                <div>
+                    <p class="text-sm font-bold text-amber-900">تایید نهایی</p>
+                    <p class="text-xs text-amber-700 mt-0.5">با ثبت این استعلام، پیش‌فاکتورهای وارد شده در سامانه ذخیره و به مدیر جهت بررسی ارسال می‌شود.</p>
+                </div>
+            </label>
+        </div>
+
+        <div class="flex justify-between gap-2 pt-4 border-t border-slate-100">
+            <button type="button" onclick="goToStep(2)" class="btn btn-ghost">→ بازگشت</button>
+            <button type="button" id="submitBtn" onclick="submitWizard()" disabled class="btn btn-success !py-3 !px-8">
+                ✅ ثبت نهایی استعلام
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="lastPurchaseModal" class="fixed inset-0 z-50 items-center justify-center bg-black/40 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 relative">
+        <button type="button" onclick="closeLastPurchaseModal()" class="absolute left-4 top-4 text-slate-400 hover:text-slate-600 text-lg">✕</button>
+        <h3 class="font-bold text-lg text-slate-800 mb-1 flex items-center gap-2">📚 آخرین خرید مشابه</h3>
+        <p class="text-xs text-slate-500 mb-4">برای مقایسه قیمت، آخرین سابقه خرید همین کالا در سامانه:</p>
+        <div id="lastPurchaseContent" class="text-sm space-y-2"></div>
+        <div class="flex gap-2 mt-6 pt-4 border-t border-slate-100">
+            <a id="lastPurchaseLink" href="#" class="btn btn-ghost !text-xs flex-1 text-center">مشاهده پرونده</a>
+            <button type="button" onclick="closeLastPurchaseModal()" class="btn btn-primary !text-xs flex-1">متوجه شدم</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const staticUrls = {
+        vazirmatn: '{% static "vendor/vazirmatn/vazirmatn.css" %}',
+    };
+    const purchaseData = {
+        pk: {{ purchase.pk }},
+        purchase_number: '{{ purchase.purchase_number }}',
+        product_title: '{{ purchase.product_title|escapejs }}',
+        product_code: '{{ purchase.product_code|escapejs }}',
+        quantity: '{{ purchase.quantity }}',
+        unit: '{{ purchase.unit }}',
+    };
+    
+    let currentStep = 1;
+    let preInvoices = [];
+    let preInvoiceCounter = 0;
+
+    function generatePreInvoiceNumber() {
+        const n = Math.floor(100000 + Math.random() * 899999);
+        return `TA${n}`;
+    }
+
+    function getInvoiceType(taxRate) {
+        return (parseFloat(taxRate) || 0) > 0 ? 'فاکتور رسمی' : 'فاکتور کد ملی';
+    }
+
+    function getInvoiceTypeClass(taxRate) {
+        return (parseFloat(taxRate) || 0) > 0 ? 'invoice-type-official' : 'invoice-type-national';
+    }
+
+    function regenerateInvoiceNumber(idx) {
+        preInvoices[idx].invoice_number = generatePreInvoiceNumber();
+        renderPreInvoices();
+    }
+
+    function showLastPurchaseModal(data) {
+        const modal = document.getElementById('lastPurchaseModal');
+        const content = document.getElementById('lastPurchaseContent');
+        const link = document.getElementById('lastPurchaseLink');
+        const fmt = (v) => v ? toPersianNumber(v) : '—';
+
+        content.innerHTML = `
+            <div class="bg-slate-50 rounded-xl p-4 space-y-2 text-xs">
+                <div class="flex justify-between"><span class="text-slate-500">خرید</span><strong>${toPersianDigits(data.purchase_number)}-${toPersianDigits(data.line_number)}</strong></div>
+                <div class="flex justify-between"><span class="text-slate-500">کالا</span><strong class="text-left max-w-[60%]">${data.product_title}</strong></div>
+                <div class="flex justify-between"><span class="text-slate-500">تامین‌کننده</span><strong>${data.supplier || '—'}</strong></div>
+                <div class="flex justify-between"><span class="text-slate-500">شماره دستور</span><strong class="mono">${toPersianDigits(data.order_number || '—')}</strong></div>
+                <div class="flex justify-between"><span class="text-slate-500">فی پیش‌فاکتور</span><strong>${fmt(data.preinvoice_price)} ریال</strong></div>
+                <div class="flex justify-between"><span class="text-slate-500">جمع سفارش</span><strong>${fmt(data.order_total)} ریال</strong></div>
+                <div class="flex justify-between"><span class="text-slate-500">تاریخ دستور</span><strong>${toPersianDigits(data.order_date || '—')}</strong></div>
+                <div class="flex justify-between"><span class="text-slate-500">وضعیت</span><strong>${data.current_status}</strong></div>
+            </div>
+        `;
+        link.href = data.detail_url;
+        modal.classList.add('open');
+    }
+
+    function closeLastPurchaseModal() {
+        document.getElementById('lastPurchaseModal').classList.remove('open');
+    }
+
+    async function loadLastSimilarPurchase() {
+        try {
+            const data = await TadarokatApp.api('{% url "inquiries:last_similar_purchase" purchase.pk %}');
+            if (data.found) showLastPurchaseModal(data);
+        } catch (e) {
+            /* بدون سابقه یا خطا — نادیده بگیر */
+        }
+    }
+    
+    function goToStep(step) {
+        if (step > currentStep + 1) return;
+        
+        document.querySelectorAll('.wizard-card').forEach(c => c.classList.add('hidden'));
+        document.getElementById('step' + step).classList.remove('hidden');
+        
+        document.querySelectorAll('.wizard-step-btn').forEach((btn, idx) => {
+            btn.classList.remove('active', 'completed');
+            if (idx + 1 < step) btn.classList.add('completed');
+            else if (idx + 1 === step) btn.classList.add('active');
+        });
+        
+        currentStep = step;
+        
+        if (step === 3) renderComparison();
+    }
+    
+    function validateStep1() {
+        const date = document.getElementById('inquiryDate').value;
+        const deadline = document.getElementById('deadline').value;
+        
+        const warehouse = document.getElementById('warehouse').value;
+        const productCategory = document.getElementById('productCategory').value;
+        if (!date || !deadline) {
+            TadarokatApp.toast.error('تاریخ استعلام و مهلت پاسخ الزامی است');
+            return;
+        }
+        if (!warehouse) {
+            TadarokatApp.toast.error('انتخاب انبار مقصد الزامی است');
+            return;
+        }
+        if (!productCategory) {
+            TadarokatApp.toast.error('انتخاب گروه بندی کالایی الزامی است');
+            return;
+        }
+        
+        document.getElementById('step2Btn').disabled = false;
+        goToStep(2);
+        
+        if (preInvoices.length === 0) addPreInvoice();
+    }
+    
+    function addPreInvoice() {
+        preInvoiceCounter++;
+        const id = preInvoiceCounter;
+        const idx = preInvoices.length;
+        preInvoices.push({
+            id: id,
+            contractor: '',
+            invoice_number: generatePreInvoiceNumber(),
+            invoice_date: '',
+            city: '',
+            validity_days: 7,
+            tax_rate: 0,
+            discount: 0,
+            notes: '',
+            is_selected: false,
+            lines: [{
+                row_number: 1,
+                product_title: purchaseData.product_title,
+                product_code: purchaseData.product_code,
+                quantity: purchaseData.quantity,
+                unit: purchaseData.unit,
+                unit_price: 0,
+                description: '',
+            }]
+        });
+        
+        renderPreInvoices();
+    }
+    
+    function renderPreInvoices() {
+        const container = document.getElementById('preInvoiceContainer');
+        container.innerHTML = preInvoices.map((inv, idx) => `
+            <div class="preinvoice-card ${inv.is_selected ? 'selected' : ''}" data-idx="${idx}">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-xl flex items-center justify-center font-black">
+                            ${idx + 1}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800">پیمانکار ${idx + 1}</h4>
+                            <label class="flex items-center gap-2 text-xs text-slate-500 mt-1 cursor-pointer">
+                                <input type="checkbox" ${inv.is_selected ? 'checked' : ''} onchange="toggleSelected(${idx})" class="rounded">
+                                انتخاب به عنوان برنده
+                            </label>
+                        </div>
+                    </div>
+                    ${preInvoices.length > 1 ? `<button type="button" onclick="removePreInvoice(${idx})" class="text-red-500 hover:text-red-700 text-sm">✕ حذف</button>` : ''}
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                    <div>
+                        <label class="form-label">نام پیمانکار *</label>
+                        <input class="form-input" value="${inv.contractor}" onchange="updateInvoice(${idx}, 'contractor', this.value)" placeholder="شرکت ...">
+                    </div>
+                    <div>
+                        <label class="form-label">شماره پیش‌فاکتور</label>
+                        <div class="flex gap-2">
+                            <input class="form-input bg-slate-50 font-mono text-sm" value="${inv.invoice_number}" readonly>
+                            <button type="button" onclick="regenerateInvoiceNumber(${idx})" class="btn btn-ghost !px-2 !text-xs" title="تولید شماره جدید">🔄</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">تاریخ</label>
+                        <input class="form-input jalali-date" data-jdp value="${inv.invoice_date}" onchange="updateInvoice(${idx}, 'invoice_date', this.value)">
+                    </div>
+                    <div>
+                        <label class="form-label">شهر</label>
+                        <input class="form-input" value="${inv.city}" onchange="updateInvoice(${idx}, 'city', this.value)">
+                    </div>
+                    <div>
+                        <label class="form-label">اعتبار (روز)</label>
+                        <input type="number" class="form-input" value="${inv.validity_days}" onchange="updateInvoice(${idx}, 'validity_days', parseInt(this.value))">
+                    </div>
+                    <div>
+                        <label class="form-label">مالیات (%)</label>
+                        <input type="number" step="0.01" min="0" class="form-input" value="${inv.tax_rate}" onchange="updateInvoice(${idx}, 'tax_rate', parseFloat(this.value) || 0)">
+                    </div>
+                    <div>
+                        <label class="form-label">تخفیف (کسور) ریال</label>
+                        <input type="number" step="1" min="0" class="form-input" value="${inv.discount || 0}"
+                               onchange="updateInvoice(${idx}, 'discount', parseFloat(this.value) || 0)"
+                               placeholder="مبلغ تخفیف → ستون کسور">
+                    </div>
+                    <div>
+                        <label class="form-label">نوع فاکتور</label>
+                        <div class="form-input !py-2.5 bg-white">
+                            <span class="invoice-type-badge ${getInvoiceTypeClass(inv.tax_rate)}">${getInvoiceType(inv.tax_rate)}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t border-slate-100 pt-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="text-xs font-bold text-slate-600 uppercase">اقلام</p>
+                        <button type="button" onclick="addLine(${idx})" class="text-xs text-indigo-600 hover:underline">+ قلم جدید</button>
+                    </div>
+                    
+                    ${inv.lines.map((line, lineIdx) => `
+                        <div class="line-row">
+                            <div class="grid grid-cols-12 gap-2 items-end">
+                                <div class="col-span-1">
+                                    <label class="text-[10px] text-slate-400">ردیف</label>
+                                    <input type="number" class="form-input !py-1.5 !text-xs" value="${line.row_number}" onchange="updateLine(${idx}, ${lineIdx}, 'row_number', parseInt(this.value))">
+                                </div>
+                                <div class="col-span-4">
+                                    <label class="text-[10px] text-slate-400">عنوان کالا</label>
+                                    <input class="form-input !py-1.5 !text-xs" value="${line.product_title}" onchange="updateLine(${idx}, ${lineIdx}, 'product_title', this.value)">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="text-[10px] text-slate-400">تعداد</label>
+                                    <input type="number" step="any" class="form-input !py-1.5 !text-xs" value="${line.quantity}" onchange="updateLine(${idx}, ${lineIdx}, 'quantity', parseFloat(this.value))">
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="text-[10px] text-slate-400">واحد</label>
+                                    <input class="form-input !py-1.5 !text-xs" value="${line.unit}" onchange="updateLine(${idx}, ${lineIdx}, 'unit', this.value)">
+                                </div>
+                                <div class="col-span-3">
+                                    <label class="text-[10px] text-slate-400">فی واحد (ریال)</label>
+                                    <input type="number" class="form-input !py-1.5 !text-xs" value="${line.unit_price}" onchange="updateLine(${idx}, ${lineIdx}, 'unit_price', parseFloat(this.value))">
+                                </div>
+                                <div class="col-span-1 flex items-end justify-end">
+                                    ${inv.lines.length > 1 ? `<button type="button" onclick="removeLine(${idx}, ${lineIdx})" class="text-red-500 hover:text-red-700 text-sm">✕</button>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center mt-2 text-xs">
+                                <span class="text-slate-500">جمع قلم:</span>
+                                <span class="font-bold text-indigo-600">${(line.quantity * line.unit_price).toLocaleString()} ریال</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                    <div class="text-center">
+                        <p class="text-slate-500">جمع اقلام</p>
+                        <p class="font-bold text-slate-800 mt-1">${calculateSubtotal(idx).toLocaleString()}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-slate-500">مالیات</p>
+                        <p class="font-bold text-violet-600 mt-1">${calculateTax(idx).toLocaleString()}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-slate-500">تخفیف (کسور)</p>
+                        <p class="font-bold text-rose-600 mt-1">${(preInvoices[idx].discount || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-slate-500">جمع کل</p>
+                        <p class="font-black text-emerald-600 mt-1">${calculateTotal(idx).toLocaleString()}</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        renderPreInvoiceSummary();
+        
+        // Reinitialize datepicker for new elements
+        if (window.jalaliDatepicker) {
+            jalaliDatepicker.startWatch({
+                selector: '.jalali-date:not([data-jdp-initialized])',
+                autoHide: true,
+            });
+        }
+    }
+    
+    function updateInvoice(idx, field, value) {
+        preInvoices[idx][field] = value;
+        renderPreInvoices();
+    }
+    
+    function updateLine(invIdx, lineIdx, field, value) {
+        preInvoices[invIdx].lines[lineIdx][field] = value;
+        renderPreInvoices();
+    }
+    
+    function addLine(invIdx) {
+        preInvoices[invIdx].lines.push({
+            row_number: preInvoices[invIdx].lines.length + 1,
+            product_title: '',
+            product_code: '',
+            quantity: 1,
+            unit: purchaseData.unit,
+            unit_price: 0,
+            description: '',
+        });
+        renderPreInvoices();
+    }
+    
+    function removeLine(invIdx, lineIdx) {
+        preInvoices[invIdx].lines.splice(lineIdx, 1);
+        renderPreInvoices();
+    }
+    
+    function removePreInvoice(idx) {
+        preInvoices.splice(idx, 1);
+        renderPreInvoices();
+    }
+    
+    function toggleSelected(idx) {
+        preInvoices.forEach((inv, i) => inv.is_selected = (i === idx));
+        renderPreInvoices();
+    }
+    
+    function calculateSubtotal(idx) {
+        return preInvoices[idx].lines.reduce((sum, line) => sum + (line.quantity * line.unit_price), 0);
+    }
+    
+    function calculateTax(idx) {
+        return calculateSubtotal(idx) * (preInvoices[idx].tax_rate / 100);
+    }
+    
+    function calculateTotal(idx) {
+        return calculateSubtotal(idx) + calculateTax(idx) - preInvoices[idx].discount;
+    }
+
+    function getMinTotalIndex() {
+        if (!preInvoices.length) return -1;
+        const totals = preInvoices.map((_, i) => calculateTotal(i));
+        const positive = totals.filter(t => t > 0);
+        if (!positive.length) return -1;
+        const minVal = Math.min(...positive);
+        return totals.indexOf(minVal);
+    }
+
+    function buildComparisonTableHtml(includeProducts) {
+        if (!preInvoices.length) return '';
+
+        const minIdx = getMinTotalIndex();
+        const colCount = preInvoices.length + 1;
+
+        const contractorHeaders = preInvoices.map((inv, i) => {
+            const isWinner = inv.is_selected;
+            const isBest = i === minIdx && calculateTotal(i) > 0;
+            return `
+                <th class="${isWinner || isBest ? 'compare-winner' : ''}">
+                    <div class="compare-contractor-name">${inv.contractor || `پیمانکار ${i + 1}`}</div>
+                    <div class="compare-contractor-sub font-mono">${inv.invoice_number || '—'}</div>
+                    ${isWinner ? '<div class="compare-winner-tag">⭐ برنده</div>' : ''}
+                    ${!isWinner && isBest ? '<div class="compare-winner-tag" style="background:#dbeafe;color:#1d4ed8;">✓ کمترین قیمت</div>' : ''}
+                </th>
+            `;
+        }).join('');
+
+        const metaRow = (label, values) => `
+            <tr class="compare-meta-row">
+                <td class="compare-label-col">${label}</td>
+                ${values.map(v => `<td>${v}</td>`).join('')}
+            </tr>
+        `;
+
+        const cities = preInvoices.map(inv => inv.city || '—');
+        const invoiceNumbers = preInvoices.map(inv =>
+            `<span class="font-mono text-xs">${inv.invoice_number ? toPersianDigits(inv.invoice_number) : '—'}</span>`
+        );
+        const types = preInvoices.map(inv =>
+            `<span class="invoice-type-badge ${getInvoiceTypeClass(inv.tax_rate)}">${getInvoiceType(inv.tax_rate)}</span>`
+        );
+        const taxRates = preInvoices.map(inv => `${toPersianDigits(inv.tax_rate)}٪`);
+        const subtotals = preInvoices.map((_, i) => {
+            const v = calculateSubtotal(i);
+            return v > 0 ? `${toPersianNumber(v)} <span class="text-[10px] text-slate-400">ریال</span>` : '—';
+        });
+        const taxes = preInvoices.map((_, i) => {
+            const v = calculateTax(i);
+            return v > 0 ? `${toPersianNumber(v)} <span class="text-[10px] text-slate-400">ریال</span>` : '۰';
+        });
+        const totals = preInvoices.map((_, i) => {
+            const v = calculateTotal(i);
+            const isBest = i === minIdx && v > 0;
+            return `<span class="${isBest ? 'text-emerald-700 font-black' : 'font-bold'}">${v > 0 ? toPersianNumber(v) : '—'}</span>`;
+        });
+
+        let productRows = '';
+        if (includeProducts) {
+            const allProducts = new Set();
+            preInvoices.forEach(inv => inv.lines.forEach(line => {
+                if (line.product_title) allProducts.add(line.product_title);
+            }));
+
+            allProducts.forEach(product => {
+                productRows += `<tr class="compare-product-row"><td class="compare-label-col">${product}</td>`;
+                preInvoices.forEach(inv => {
+                    const line = inv.lines.find(l => l.product_title === product);
+                    if (line) {
+                        const lineTotal = line.quantity * line.unit_price;
+                        productRows += `
+                            <td>
+                                <div class="text-[11px] text-slate-500">${toPersianNumber(line.quantity)} ${line.unit}</div>
+                                <div class="font-bold text-slate-800">${toPersianNumber(line.unit_price)}</div>
+                                <div class="text-[10px] text-indigo-600 mt-0.5">جمع: ${toPersianNumber(lineTotal)}</div>
+                            </td>
+                        `;
+                    } else {
+                        productRows += '<td class="text-slate-300">—</td>';
+                    }
+                });
+                productRows += '</tr>';
+            });
+        }
+
+        return `
+            <div class="compare-table-wrap">
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th class="compare-label-col">معیار مقایسه</th>
+                            ${contractorHeaders}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${metaRow('شهر', cities)}
+                        ${metaRow('شماره پیش‌فاکتور', invoiceNumbers)}
+                        ${metaRow('نوع فاکتور', types)}
+                        ${metaRow('نرخ مالیات', taxRates)}
+                        ${metaRow('جمع اقلام', subtotals)}
+                        ${metaRow('مبلغ مالیات', taxes)}
+                        <tr class="compare-total-row">
+                            <td class="compare-label-col">جمع کل</td>
+                            ${preInvoices.map((_, i) => {
+                                const isBest = i === minIdx && calculateTotal(i) > 0;
+                                return `<td class="${isBest ? 'compare-best' : ''}">${totals[i]} <span class="text-[10px] text-slate-400">ریال</span></td>`;
+                            }).join('')}
+                        </tr>
+                        ${includeProducts && productRows ? `
+                            <tr class="compare-section-row"><td colspan="${colCount}">جزئیات اقلام</td></tr>
+                            ${productRows}
+                        ` : ''}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function renderPreInvoiceSummary() {
+        const box = document.getElementById('preInvoiceCompareSummary');
+        if (!box) return;
+        if (preInvoices.length < 1) {
+            box.classList.add('hidden');
+            box.innerHTML = '';
+            return;
+        }
+        box.classList.remove('hidden');
+        const title = preInvoices.length >= 2
+            ? '⚖️ جدول مقایسه پیمانکاران'
+            : '📋 خلاصه پیش‌فاکتور';
+        box.innerHTML = `
+            <div class="preinvoice-compare-box">
+                <div class="preinvoice-compare-title">${title}</div>
+                ${buildComparisonTableHtml(false)}
+            </div>
+        `;
+    }
+    
+    function validateStep2() {
+        if (preInvoices.length === 0) {
+            TadarokatApp.toast.error('حداقل یک پیش‌فاکتور وارد کنید');
+            return;
+        }
+        
+        for (let i = 0; i < preInvoices.length; i++) {
+            const inv = preInvoices[i];
+            if (!inv.contractor) {
+                TadarokatApp.toast.error(`نام پیمانکار ${i + 1} الزامی است`);
+                return;
+            }
+            if (inv.lines.length === 0 || inv.lines.every(l => l.unit_price === 0)) {
+                TadarokatApp.toast.error(`حداقل یک قلم با قیمت در پیش‌فاکتور ${i + 1} وارد کنید`);
+                return;
+            }
+        }
+        
+        document.getElementById('step3Btn').disabled = false;
+        goToStep(3);
+    }
+    
+    function getInquiryHeader() {
+        return {
+            inquiry_number: document.getElementById('inquiryNumber').value,
+            inquiry_date: document.getElementById('inquiryDate').value,
+            deadline: document.getElementById('deadline').value,
+            purchase_type: document.getElementById('purchaseType').value,
+            urgency_code: document.getElementById('urgencyCode').value,
+            supply_unit: document.getElementById('supplyUnit').value,
+            warehouse: document.getElementById('warehouse').value,
+            product_category: document.getElementById('productCategory').value,
+            warehouse_request_number: document.getElementById('warehouseRequestNumber').value,
+            warehouse_request_date: document.getElementById('warehouseRequestDate').value,
+            requester: document.getElementById('requester').value,
+            reason: document.getElementById('reason').value,
+            risk_note: document.getElementById('riskNote').value,
+        };
+    }
+
+    function getCsrfToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+            document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+    }
+
+    function buildPrintDocument() {
+        const header = getInquiryHeader();
+        const totals = preInvoices.map((_, i) => calculateTotal(i));
+        const minIdx = getMinTotalIndex();
+        const requester = header.requester || '—';
+
+        const printLabel = 'padding:8px 10px;border:1px solid #e2e8f0;background:#f1f5f9;font-weight:700;text-align:right;color:#475569;white-space:nowrap;';
+        const printVal = (extra = '') => `padding:8px 10px;border:1px solid #e2e8f0;text-align:center;vertical-align:middle;${extra}`;
+        const printSection = 'padding:8px 10px;border:1px solid #e2e8f0;background:#eef2ff;color:#4338ca;font-weight:800;text-align:right;font-size:11px;';
+
+        const printMetaRow = (label, values) => `
+            <tr>
+                <td style="${printLabel}">${label}</td>
+                ${values.map(v => `<td style="${printVal()}">${v}</td>`).join('')}
+            </tr>
+        `;
+
+        const contractorHeaders = preInvoices.map((inv, i) => {
+            const hl = inv.is_selected || (i === minIdx && totals[i] > 0);
+            return `<th style="${printVal('background:#eef2ff;font-weight:800;min-width:110px;')}">
+                <div>${inv.contractor || `پیمانکار ${i + 1}`}</div>
+                ${inv.is_selected ? '<div style="font-size:9px;color:#059669;margin-top:3px;">⭐ برنده</div>' : ''}
+            </th>`;
+        }).join('');
+
+        let comparisonRows = '';
+        comparisonRows += printMetaRow('شهر', preInvoices.map(inv => inv.city || '—'));
+        comparisonRows += printMetaRow('شماره پیش‌فاکتور', preInvoices.map(inv =>
+            `<span style="font-family:monospace;font-size:11px;">${inv.invoice_number ? toPersianDigits(inv.invoice_number) : '—'}</span>`
+        ));
+        comparisonRows += printMetaRow('نوع فاکتور', preInvoices.map(inv => getInvoiceType(inv.tax_rate)));
+        comparisonRows += printMetaRow('نرخ مالیات', preInvoices.map(inv => `${toPersianDigits(inv.tax_rate)}٪`));
+        comparisonRows += printMetaRow('جمع اقلام', preInvoices.map((_, i) => {
+            const v = calculateSubtotal(i);
+            return v > 0 ? `${toPersianNumber(v)} ریال` : '—';
+        }));
+        comparisonRows += printMetaRow('مبلغ مالیات', preInvoices.map((_, i) => {
+            const v = calculateTax(i);
+            return v > 0 ? `${toPersianNumber(v)} ریال` : '۰';
+        }));
+        comparisonRows += `<tr style="background:#f8fafc;font-weight:800;">
+            <td style="${printLabel}">جمع کل</td>
+            ${preInvoices.map((inv, i) => {
+                const v = totals[i];
+                const isBest = i === minIdx && v > 0;
+                return `<td style="${printVal(isBest ? 'background:#ecfdf5;color:#059669;' : '')}">
+                    ${v > 0 ? toPersianNumber(v) + ' ریال' : '—'}
+                    ${isBest ? '<div style="font-size:9px;font-weight:600;margin-top:2px;">✓ کمترین قیمت</div>' : ''}
+                </td>`;
+            }).join('')}
+        </tr>`;
+
+        const allProducts = new Set();
+        preInvoices.forEach(inv => inv.lines.forEach(line => {
+            if (line.product_title) allProducts.add(line.product_title);
+        }));
+
+        allProducts.forEach(product => {
+            const colSpan = preInvoices.length + 1;
+            comparisonRows += `<tr><td colspan="${colSpan}" style="${printSection}">📦 ${product}</td></tr>`;
+            comparisonRows += printMetaRow('تعداد', preInvoices.map(inv => {
+                const line = inv.lines.find(l => l.product_title === product);
+                return line ? `${toPersianNumber(line.quantity)} ${line.unit}` : '—';
+            }));
+            comparisonRows += printMetaRow('فی واحد (ریال)', preInvoices.map(inv => {
+                const line = inv.lines.find(l => l.product_title === product);
+                return line ? toPersianNumber(line.unit_price) : '—';
+            }));
+            comparisonRows += printMetaRow('جمع قلم (ریال)', preInvoices.map(inv => {
+                const line = inv.lines.find(l => l.product_title === product);
+                return line ? toPersianNumber(line.quantity * line.unit_price) : '—';
+            }));
+        });
+
+        const preInvoiceSections = preInvoices.map((inv, idx) => {
+            const subtotal = calculateSubtotal(idx);
+            const tax = calculateTax(idx);
+            const total = calculateTotal(idx);
+            const linesHtml = inv.lines.map(line => `
+                <tr>
+                    <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;">${toPersianDigits(line.row_number)}</td>
+                    <td style="padding:6px 8px;border:1px solid #e2e8f0;">${line.product_title}</td>
+                    <td style="padding:6px 8px;border:1px solid #e2e8f0;font-family:monospace;font-size:11px;">${toPersianDigits(line.product_code || '—')}</td>
+                    <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;">${toPersianNumber(line.quantity)} ${line.unit}</td>
+                    <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left;">${toPersianNumber(line.unit_price)}</td>
+                    <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">${toPersianNumber(line.quantity * line.unit_price)}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div style="margin-top:24px;border:2px solid ${inv.is_selected ? '#10b981' : '#e2e8f0'};border-radius:12px;overflow:hidden;page-break-inside:avoid;">
+                    <div style="background:${inv.is_selected ? 'linear-gradient(135deg,#ecfdf5,#fff)' : 'linear-gradient(135deg,#f5f3ff,#fff)'};padding:14px 16px;border-bottom:1px solid #e2e8f0;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                            <div style="flex:1;">
+                                <div style="font-size:22px;font-weight:900;color:#4f46e5;line-height:1.2;">
+                                    خرید ${toPersianDigits(purchaseData.purchase_number)}
+                                </div>
+                                <div style="font-size:13px;font-weight:600;color:#334155;margin-top:6px;">${purchaseData.product_title}</div>
+                            </div>
+                            <div style="text-align:left;font-size:11px;color:#64748b;min-width:140px;">
+                                <div><span style="color:#94a3b8;">شماره پیش‌فاکتور:</span><br><strong style="font-family:monospace;font-size:13px;color:#1e293b;">${inv.invoice_number ? toPersianDigits(inv.invoice_number) : '—'}</strong></div>
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:12px;font-size:11px;">
+                            <div><span style="color:#94a3b8;">پیمانکار:</span> <strong>${inv.contractor || '—'}</strong></div>
+                            <div><span style="color:#94a3b8;">درخواست‌دهنده:</span> <strong>${requester}</strong></div>
+                            <div><span style="color:#94a3b8;">شهر:</span> <strong>${inv.city || '—'}</strong></div>
+                            <div><span style="color:#94a3b8;">نوع فاکتور:</span> <strong>${getInvoiceType(inv.tax_rate)}</strong></div>
+                            <div><span style="color:#94a3b8;">تاریخ:</span> ${toPersianDigits(inv.invoice_date || '—')}</div>
+                            <div><span style="color:#94a3b8;">مالیات:</span> ${toPersianDigits(inv.tax_rate)}٪</div>
+                            <div><span style="color:#94a3b8;">اعتبار:</span> ${toPersianDigits(inv.validity_days)} روز</div>
+                            ${inv.is_selected ? '<div style="color:#059669;font-weight:700;">⭐ پیمانکار برنده</div>' : '<div></div>'}
+                        </div>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                        <thead>
+                            <tr style="background:#f1f5f9;">
+                                <th style="padding:8px;border:1px solid #e2e8f0;">ردیف</th>
+                                <th style="padding:8px;border:1px solid #e2e8f0;">عنوان کالا</th>
+                                <th style="padding:8px;border:1px solid #e2e8f0;">کد</th>
+                                <th style="padding:8px;border:1px solid #e2e8f0;">تعداد</th>
+                                <th style="padding:8px;border:1px solid #e2e8f0;">فی (ریال)</th>
+                                <th style="padding:8px;border:1px solid #e2e8f0;">جمع (ریال)</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linesHtml}</tbody>
+                        <tfoot>
+                            <tr style="background:#f8fafc;">
+                                <td colspan="5" style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">جمع اقلام</td>
+                                <td style="padding:8px;border:1px solid #e2e8f0;font-weight:700;">${toPersianNumber(subtotal)}</td>
+                            </tr>
+                            <tr style="background:#f8fafc;">
+                                <td colspan="5" style="padding:8px;border:1px solid #e2e8f0;text-align:left;">مالیات</td>
+                                <td style="padding:8px;border:1px solid #e2e8f0;color:#7c3aed;">${toPersianNumber(tax)}</td>
+                            </tr>
+                            <tr style="background:#ecfdf5;">
+                                <td colspan="5" style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:800;">جمع کل</td>
+                                <td style="padding:8px;border:1px solid #e2e8f0;font-weight:800;color:#059669;">${toPersianNumber(total)} ریال</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+        }).join('');
+
+        return `<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مقایسه پیش‌فاکتور - خرید ${toPersianDigits(purchaseData.purchase_number)}</title>
+    <link href="${staticUrls.vazirmatn}" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Vazirmatn', Tahoma, sans-serif; color: #1e293b; margin: 0; padding: 24px; background: #fff; }
+        @media print { body { padding: 12px; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #4f46e5;padding-bottom:16px;margin-bottom:20px;">
+        <div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">سامانه تدارکات کلور · مقایسه پیش‌فاکتور</div>
+            <div style="font-size:28px;font-weight:900;color:#4f46e5;line-height:1.2;">
+                خرید ${toPersianDigits(purchaseData.purchase_number)}
+            </div>
+            <div style="font-size:12px;color:#64748b;margin-top:8px;line-height:1.9;">
+                <div><span style="color:#94a3b8;">درخواست‌دهنده:</span> <strong style="color:#1e293b;">${requester}</strong></div>
+                <div><span style="color:#94a3b8;">واحد تامین:</span> ${header.supply_unit || '—'} · <span style="color:#94a3b8;">انبار:</span> ${header.warehouse || '—'}</div>
+                <div><span style="color:#94a3b8;">گروه کالایی:</span> ${header.product_category || '—'}</div>
+                <div><span style="color:#94a3b8;">درخواست انبار:</span> ${toPersianDigits(header.warehouse_request_number || '—')} · <span style="color:#94a3b8;">تاریخ ثبت:</span> ${toPersianDigits(header.warehouse_request_date || '—')}</div>
+            </div>
+        </div>
+        <div style="text-align:left;font-size:11px;color:#94a3b8;min-width:150px;">
+            <div style="margin-bottom:6px;">تاریخ چاپ: ${toPersianDigits(new Date().toLocaleDateString('fa-IR'))}</div>
+            <div><span style="color:#94a3b8;">استعلام:</span> ${toPersianDigits(header.inquiry_number || '—')}</div>
+            <div><span style="color:#94a3b8;">تاریخ:</span> ${toPersianDigits(header.inquiry_date || '—')}</div>
+            <div><span style="color:#94a3b8;">مهلت:</span> ${toPersianDigits(header.deadline || '—')}</div>
+        </div>
+    </div>
+
+    <h2 style="font-size:15px;color:#334155;margin:0 0 10px;display:flex;align-items:center;gap:6px;">
+        <span style="display:inline-block;width:4px;height:18px;background:#10b981;border-radius:2px;"></span>
+        جدول مقایسه پیمانکاران
+    </h2>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;">
+        <thead>
+            <tr style="background:#eef2ff;">
+                <th style="${printLabel}">معیار</th>
+                ${contractorHeaders}
+            </tr>
+        </thead>
+        <tbody>${comparisonRows}</tbody>
+    </table>
+
+    <h2 style="font-size:15px;color:#334155;margin:24px 0 10px;display:flex;align-items:center;gap:6px;">
+        <span style="display:inline-block;width:4px;height:18px;background:#8b5cf6;border-radius:2px;"></span>
+        جزئیات پیش‌فاکتورها
+    </h2>
+    ${preInvoiceSections}
+</body>
+</html>`;
+    }
+
+    function printPreInvoices() {
+        if (preInvoices.length === 0) {
+            TadarokatApp.toast.error('پیش‌فاکتوری برای چاپ وجود ندارد');
+            return;
+        }
+        const win = window.open('', '_blank');
+        if (!win) {
+            TadarokatApp.toast.error('پاپ‌آپ مسدود است. لطفاً اجازه باز شدن پنجره جدید را بدهید.');
+            return;
+        }
+        win.document.write(buildPrintDocument());
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 600);
+    }
+
+    async function exportPreInvoicesExcel() {
+        if (preInvoices.length === 0) {
+            TadarokatApp.toast.error('پیش‌فاکتوری برای خروجی وجود ندارد');
+            return;
+        }
+
+        TadarokatApp.loading.show('در حال تهیه فایل اکسل...');
+        try {
+            const response = await fetch('{% url "inquiries:export_wizard" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({
+                    purchase_data: purchaseData,
+                    header: getInquiryHeader(),
+                    pre_invoices: preInvoices,
+                }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'خطا در تهیه فایل اکسل');
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const match = disposition.match(/filename="?([^"]+)"?/);
+            link.download = match ? match[1] : `preinvoices_${purchaseData.purchase_number}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            TadarokatApp.toast.success('فایل اکسل با موفقیت دانلود شد');
+        } catch (e) {
+            TadarokatApp.toast.error(e.message || 'خطا در خروجی اکسل');
+        } finally {
+            TadarokatApp.loading.hide();
+        }
+    }
+
+    function renderComparison() {
+        const table = document.getElementById('comparisonTable');
+        
+        if (preInvoices.length === 0) {
+            table.innerHTML = '<p class="text-center text-slate-400 py-8">پیش‌فاکتوری برای مقایسه نیست</p>';
+            return;
+        }
+
+        table.innerHTML = buildComparisonTableHtml(true);
+    }
+    
+    document.getElementById('confirmCheckbox').addEventListener('change', function() {
+        document.getElementById('submitBtn').disabled = !this.checked;
+    });
+    
+    async function submitWizard() {
+        const header = getInquiryHeader();
+        
+        TadarokatApp.loading.show('در حال ثبت استعلام...');
+        
+        try {
+            const result = await TadarokatApp.api('{% url "inquiries:issue_submit" %}', {
+                method: 'POST',
+                body: {
+                    purchase_pk: purchaseData.pk,
+                    header: header,
+                    pre_invoices: preInvoices,
+                }
+            });
+            
+            TadarokatApp.loading.hide();
+            TadarokatApp.toast.success(result.message);
+            
+            setTimeout(() => {
+                window.location.href = '/inquiries/' + result.inquiry_id + '/';
+            }, 1000);
+        } catch (e) {
+            TadarokatApp.loading.hide();
+            TadarokatApp.toast.error('خطا در ثبت: ' + e.message);
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        loadLastSimilarPurchase();
+    });
+</script>
+{% endblock %}

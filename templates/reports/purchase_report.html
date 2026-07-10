@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}گزارش خرید{% endblock %}
+{% block page_title %}گزارش جامع خرید{% endblock %}
+{% block page_subtitle %}نمای کلی تفکیک‌شده — هر بخش در تب جدا{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <div class="flex flex-wrap justify-between items-center gap-3">
+        <a href="{% url 'dashboard' %}" class="text-sm text-slate-500 hover:text-indigo-600 font-medium">← بازگشت به داشبورد</a>
+        {% include 'reports/_export_button.html' %}
+    </div>
+    <div class="flex flex-wrap justify-between items-center gap-3">
+        <div class="flex flex-wrap gap-2" id="reportTabs" role="tablist">
+            <button type="button" class="report-tab-btn active" data-tab="overview">📊 خلاصه</button>
+            <button type="button" class="report-tab-btn" data-tab="deadlines">⏱️ مهلت‌ها</button>
+            <button type="button" class="report-tab-btn" data-tab="workflow">🔄 گردش کار</button>
+            <button type="button" class="report-tab-btn" data-tab="breakdown">📋 تفکیک‌ها</button>
+        </div>
+    </div>
+
+    <!-- تب ۱: خلاصه -->
+    <div id="tab-overview" class="report-tab-panel active space-y-5">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="kpi-card" style="--kpi-color: #4f46e5">
+                <div class="kpi-icon bg-indigo-100 text-indigo-600">📋</div>
+                <p class="kpi-label">کل درخواست‌ها</p>
+                <p class="kpi-value">{{ total_purchases|fa_comma }}</p>
+            </div>
+            <div class="kpi-card" style="--kpi-color: #10b981">
+                <div class="kpi-icon bg-emerald-100 text-emerald-600">💰</div>
+                <p class="kpi-label">ارزش سفارشات</p>
+                <p class="kpi-value text-emerald-700">{{ total_value.order_total|default:0|fa_compact }}</p>
+            </div>
+            <div class="kpi-card" style="--kpi-color: #06b6d4">
+                <div class="kpi-icon bg-cyan-100 text-cyan-600">🧾</div>
+                <p class="kpi-label">ارزش فاکتورها</p>
+                <p class="kpi-value text-cyan-700">{{ total_value.invoice_total|default:0|fa_compact }}</p>
+            </div>
+            <div class="kpi-card" style="--kpi-color: #8b5cf6">
+                <div class="kpi-icon bg-violet-100 text-violet-600">📊</div>
+                <p class="kpi-label">نرخ تکمیل</p>
+                <p class="kpi-value text-violet-600">{{ completion_rate|fa }}٪</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h3 class="font-bold text-slate-800 mb-1">گزارش‌های تفصیلی</h3>
+            <p class="text-xs text-slate-500 mb-4">برای جزئیات بیشتر، وارد هر گزارش تخصصی شوید</p>
+
+            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2">مهلت و زمان</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+                <a href="{% url 'reports:deadline_deviation' %}" class="report-hub-card border-red-100 bg-red-50/30">
+                    <span class="text-lg">⏱️</span>
+                    <span class="hub-title text-red-900">انحراف مهلت</span>
+                    <span class="hub-desc">درخواست و سفارش — تفکیک کارشناس و گروه کالایی</span>
+                </a>
+                <a href="{% url 'reports:payment_lead' %}" class="report-hub-card border-violet-100 bg-violet-50/30">
+                    <span class="text-lg">⏳</span>
+                    <span class="hub-title text-violet-900">لید تایم پرداخت</span>
+                    <span class="hub-desc">از ثبت واریزی تا انجام — AP تا AQ</span>
+                </a>
+                {% if is_superuser %}
+                <a href="{% url 'accounts:category_deadline_list' %}" class="report-hub-card">
+                    <span class="text-lg">⚙️</span>
+                    <span class="hub-title">تنظیم قوانین مهلت</span>
+                    <span class="hub-desc">مهلت درخواست و لید تایم به تفکیک گروه کالایی</span>
+                </a>
+                {% endif %}
+            </div>
+
+            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2">مالی</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+                <a href="{% url 'reports:category_amounts' %}" class="report-hub-card border-emerald-100 bg-emerald-50/30">
+                    <span class="text-lg">💰</span>
+                    <span class="hub-title text-emerald-900">مبالغ گروه کالایی</span>
+                    <span class="hub-desc">جمع سفارشات به تفکیک گروه — با فیلتر تاریخ</span>
+                </a>
+                <a href="{% url 'reports:product_amounts' %}" class="report-hub-card border-cyan-100 bg-cyan-50/30">
+                    <span class="text-lg">📦</span>
+                    <span class="hub-title text-cyan-900">مبالغ ریالی کالا</span>
+                    <span class="hub-desc">جمع بر اساس کد کالا — AJ یا AA</span>
+                </a>
+                <a href="{% url 'reports:financial_loss' %}" class="report-hub-card border-rose-100 bg-rose-50/30">
+                    <span class="text-lg">📉</span>
+                    <span class="hub-title text-rose-900">ضرر مالی</span>
+                    <span class="hub-desc">مقایسه فاکتور AL با سفارش AC (بدون جمع بودجه)</span>
+                </a>
+            </div>
+
+            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2">تحلیلی</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <a href="{% url 'reports:purchase_tree' %}" class="report-hub-card border-indigo-100 bg-indigo-50/30">
+                    <span class="text-lg">🔗</span>
+                    <span class="hub-title text-indigo-900">گراف وضعیت خرید</span>
+                    <span class="hub-desc">بسته/باز، سفارش، دستور، پیش‌فاکتور — گراف با یال</span>
+                </a>
+                <a href="{% url 'reports:expert_performance' %}" class="report-hub-card">
+                    <span class="text-lg">👥</span>
+                    <span class="hub-title">عملکرد کارشناسان</span>
+                    <span class="hub-desc">انحراف مهلت استعلام (O) در برابر تاریخ سفارش (AB)</span>
+                </a>
+                <a href="{% url 'reports:data_quality' %}" class="report-hub-card">
+                    <span class="text-lg">🔍</span>
+                    <span class="hub-title">کیفیت داده</span>
+                    <span class="hub-desc">اعتبارسنجی تطابق اکسل با پنل</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- تب ۲: مهلت‌ها -->
+    <div id="tab-deadlines" class="report-tab-panel space-y-5">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                <p class="text-xs text-slate-500 mb-1">به‌موقع (مهلت درخواست)</p>
+                <p class="text-xl font-bold text-emerald-600">{{ deadline_on_time_count|fa_comma }}</p>
+            </div>
+            <a href="{% url 'reports:deadline_deviation' %}"
+               class="bg-red-50 rounded-xl border border-red-200 p-4 text-center hover:border-red-300 transition block">
+                <p class="text-xs text-red-700 mb-1 font-medium">انحراف مهلت درخواست ←</p>
+                <p class="text-xl font-bold text-red-600">{{ deadline_deviated_count|fa_comma }}</p>
+            </a>
+            <div class="bg-emerald-50 rounded-xl border border-emerald-200 p-4 text-center">
+                <p class="text-xs text-emerald-700 mb-1">سفارش به‌موقع (O→AB)</p>
+                <p class="text-xl font-bold text-emerald-700">{{ order_deadline_summary.on_time|fa_comma }}</p>
+            </div>
+            <a href="{% url 'reports:deadline_deviation' %}#order-deadline"
+               class="bg-orange-50 rounded-xl border border-orange-200 p-4 text-center hover:border-orange-300 transition block">
+                <p class="text-xs text-orange-800 mb-1 font-medium">انحراف مهلت سفارش ←</p>
+                <p class="text-xl font-bold text-orange-700">{{ order_deadline_summary.deviated|fa_comma }}</p>
+            </a>
+            <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                <p class="text-xs text-slate-500 mb-1">بررسی‌شده (سفارش)</p>
+                <p class="text-xl font-bold text-slate-700">{{ order_deadline_summary.evaluated|fa_comma }}</p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                <p class="text-xs text-slate-500 mb-1">نرخ انحراف سفارش</p>
+                <p class="text-xl font-bold text-amber-600">{{ order_deadline_summary.rate|fa }}٪</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- تب ۳: گردش کار -->
+    <div id="tab-workflow" class="report-tab-panel space-y-5">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                <p class="text-xs text-slate-500 mb-1">استعلام‌ها در پنل</p>
+                <p class="text-xl font-bold text-blue-600">{{ inquiry_count|fa_comma }}</p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                <p class="text-xs text-slate-500 mb-1">دستورات خرید در پنل</p>
+                <p class="text-xl font-bold text-purple-600">{{ order_count|fa_comma }}</p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                <p class="text-xs text-slate-500 mb-1">تحویل‌ها در پنل</p>
+                <p class="text-xl font-bold text-emerald-600">{{ delivery_count|fa_comma }}</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h3 class="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                <span class="w-1 h-5 bg-amber-500 rounded-full"></span>
+                میانگین مدت هر مرحله (روز)
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">بر اساس ستون‌های اکسل — جهت زمان از راست به چپ</p>
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>مرحله</th>
+                            <th>میانگین (روز)</th>
+                            <th>میانه (روز)</th>
+                            <th>تعداد نمونه</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stage in stage_averages %}
+                        <tr>
+                            <td class="font-medium text-slate-800">{{ stage.label }}</td>
+                            <td class="font-bold text-amber-600">
+                                {% if stage.avg_days is not None %}{{ stage.avg_days|fa }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-slate-600">
+                                {% if stage.median_days is not None %}{{ stage.median_days|fa }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-slate-500">{{ stage.sample_count|fa_comma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- تب ۴: تفکیک‌ها -->
+    <div id="tab-breakdown" class="report-tab-panel space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="w-1 h-5 bg-indigo-500 rounded-full"></span>
+                    توزیع وضعیت‌ها
+                </h3>
+                <div class="space-y-3">
+                    {% for status_name, count in status_stats.items %}
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-700 font-medium">{{ status_name }}</span>
+                            <span class="font-bold text-slate-900">{{ count|fa_comma }}</span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-indigo-500 rounded-full"
+                                 style="width: {% widthratio count total_purchases 100 %}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="w-1 h-5 bg-purple-500 rounded-full"></span>
+                    نوع خرید
+                </h3>
+                <div class="space-y-3">
+                    {% for type in type_stats %}
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-700 font-medium">{{ type.purchase_type }}</span>
+                            <span class="font-bold text-slate-900">{{ type.count|fa_comma }}</span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-purple-500 rounded-full"
+                                 style="width: {% widthratio type.count total_purchases 100 %}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="w-1 h-5 bg-cyan-500 rounded-full"></span>
+                    گروه بندی کالایی
+                </h3>
+                <div class="space-y-3 max-h-80 overflow-y-auto">
+                    {% for cat in category_stats %}
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-700 font-medium">{{ cat.product_category }}</span>
+                            <span class="font-bold text-slate-900">{{ cat.count|fa_comma }}</span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-cyan-500 rounded-full"
+                                 style="width: {% widthratio cat.count total_purchases 100 %}%"></div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-slate-400 text-center py-4">هنوز گروه کالایی ثبت نشده</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="w-1 h-5 bg-emerald-500 rounded-full"></span>
+                روند ماهانه درخواست‌ها
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ماه (شمسی)</th>
+                            <th>تعداد درخواست‌ها</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for month in monthly_stats %}
+                        <tr>
+                            <td class="font-mono">{{ month.month|fa }}</td>
+                            <td class="font-bold text-indigo-600">{{ month.count|fa_comma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center text-slate-400 py-4">داده‌ای موجود نیست</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-wrap justify-between items-center gap-3">
+            <p class="text-sm text-slate-600">اعتبارسنجی تطابق اکسل با پنل (۱۰ ردیف تصادفی)</p>
+            <a href="{% url 'reports:data_quality' %}" class="btn btn-primary !py-2 !text-xs">🔍 مشاهده گزارش کیفیت داده</a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('#reportTabs .report-tab-btn');
+    const panels = document.querySelectorAll('.report-tab-panel');
+
+    function activateTab(tabId) {
+        buttons.forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.tab === tabId);
+        });
+        panels.forEach(function(panel) {
+            panel.classList.toggle('active', panel.id === 'tab-' + tabId);
+        });
+        try { localStorage.setItem('purchaseReportTab', tabId); } catch (e) {}
+    }
+
+    buttons.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            activateTab(btn.dataset.tab);
+        });
+    });
+
+    let savedTab = null;
+    try { savedTab = localStorage.getItem('purchaseReportTab'); } catch (e) {}
+    if (savedTab && document.getElementById('tab-' + savedTab)) {
+        activateTab(savedTab);
+    }
+});
+</script>
+{% endblock %}

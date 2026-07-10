@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}انبارهای مقصد{% endblock %}
+{% block page_title %}انبارهای مقصد{% endblock %}
+{% block page_subtitle %}مدیریت انبارها و کاربران مرتبط{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-4">افزودن انبار جدید</h3>
+        <form method="post" class="flex flex-col sm:flex-row gap-3">
+            {% csrf_token %}
+            <input type="text" name="name" class="form-input flex-1" placeholder="نام انبار جدید" required>
+            <button type="submit" class="btn btn-primary whitespace-nowrap">+ افزودن انبار</button>
+        </form>
+        <p class="text-xs text-slate-500 mt-2">انبارهای جدید بلافاصله در منوی «انبار مقصد» استعلام و فرم کاربران انباردار نمایش داده می‌شوند.</p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <h3 class="font-bold text-slate-800">لیست انبارها</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="text-right py-3 px-4 text-xs font-semibold text-slate-500">نام انبار</th>
+                        <th class="text-right py-3 px-4 text-xs font-semibold text-slate-500">کاربران انباردار</th>
+                        <th class="text-right py-3 px-4 text-xs font-semibold text-slate-500">وضعیت</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wh in warehouses %}
+                    <tr class="border-b border-slate-50 hover:bg-slate-50">
+                        <td class="py-3 px-4 font-bold text-slate-800">{{ wh.name }}</td>
+                        <td class="py-3 px-4 text-slate-600">
+                            {% for u in wh.users.all %}
+                            <span class="inline-block bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded ml-1 mb-1">{{ u.username }}</span>
+                            {% empty %}
+                            <span class="text-slate-400 text-xs">بدون کاربر</span>
+                            {% endfor %}
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if wh.is_active %}
+                            <span class="badge badge-green text-xs">فعال</span>
+                            {% else %}
+                            <span class="badge badge-slate text-xs">غیرفعال</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="py-8 text-center text-slate-400">انباری ثبت نشده است</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <a href="{% url 'accounts:user_list' %}" class="text-sm text-indigo-600 hover:underline">← بازگشت به مدیریت کاربران</a>
+</div>
+{% endblock %}

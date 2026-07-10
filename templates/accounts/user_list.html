@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}مدیریت کاربران{% endblock %}
+{% block page_title %}مدیریت کاربران{% endblock %}
+{% block page_subtitle %}لیست و مدیریت کاربران سیستم{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <!-- Actions -->
+    <div class="flex justify-between items-center">
+        <div class="flex gap-2">
+            <input type="text" id="searchInput" placeholder="جستجو..." class="form-input !w-64">
+            <select id="roleFilter" class="form-input !w-48">
+                <option value="">همه نقش‌ها</option>
+                {% for code, name in role_choices %}
+                <option value="{{ code }}" {% if code == role %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <a href="{% url 'accounts:user_create' %}" class="btn btn-primary">
+            + کاربر جدید
+        </a>
+    </div>
+    
+    <!-- Users Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>نام کاربری</th>
+                    <th>نام کامل</th>
+                    <th>نقش</th>
+                    <th>ایمیل</th>
+                    <th>تلفن</th>
+                    <th>وضعیت</th>
+                    <th>تاریخ عضویت</th>
+                    <th class="text-center">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td class="font-bold text-indigo-600">{{ u.username }}</td>
+                    <td>{{ u.get_full_name|default:"—" }}</td>
+                    <td>
+                        <span class="badge badge-{% if u.role == 'superuser' %}red{% elif u.role == 'admin' %}purple{% elif u.role == 'expert' %}blue{% else %}green{% endif %}">
+                            {{ u.get_role_display }}
+                        </span>
+                    </td>
+                    <td>{{ u.email|default:"—" }}</td>
+                    <td>{{ u.phone|default:"—" }}</td>
+                    <td>
+                        <button onclick="toggleActive({{ u.pk }}, this)" 
+                                class="badge {% if u.is_active %}badge-green{% else %}badge-red{% endif %} cursor-pointer">
+                            {% if u.is_active %}فعال{% else %}غیرفعال{% endif %}
+                        </button>
+                    </td>
+                    <td class="text-xs">{{ u.date_joined|date:"Y/m/d"|fa }}</td>
+                    <td class="text-center" onclick="event.stopPropagation()">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-ghost !py-1 !px-2.5 !text-[11px]">ویرایش</a>
+                            <button onclick="deleteUser({{ u.pk }}, '{{ u.username }}')" class="btn btn-ghost !py-1 !px-2.5 !text-[11px] text-red-600">حذف</button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-slate-400 py-8">کاربری یافت نشد</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function toggleActive(pk, btn) {
+    fetch(`/accounts/users/${pk}/toggle-active/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            TadarokatApp.toast.success(data.message);
+            btn.textContent = data.is_active ? 'فعال' : 'غیرفعال';
+            btn.className = `badge ${data.is_active ? 'badge-green' : 'badge-red'} cursor-pointer`;
+        } else {
+            TadarokatApp.toast.error(data.error);
+        }
+    });
+}
+
+function deleteUser(pk, username) {
+    if (confirm(`آیا از حذف کاربر ${username} مطمئن هستید؟`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/accounts/users/${pk}/delete/`;
+        form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+    const search = this.value;
+    const role = document.getElementById('roleFilter').value;
+    window.location.href = `?search=${search}&role=${role}`;
+});
+
+document.getElementById('roleFilter').addEventListener('change', function() {
+    const search = document.getElementById('searchInput').value;
+    const role = this.value;
+    window.location.href = `?search=${search}&role=${role}`;
+});
+</script>
+{% endblock %}

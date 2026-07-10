@@ -1,0 +1,29 @@
+# یک دستور:  start.bat   یا   docker compose up --build
+
+services:
+  web:
+    build: .
+    container_name: tadarokat-web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings_docker
+      DEBUG: "True"
+      SECRET_KEY: docker-dev-secret-change-in-production
+      ALLOWED_HOSTS: "*"
+      DATA_DIR: /app/data
+      MEDIA_ROOT: /app/media
+      CSRF_TRUSTED_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
+    volumes:
+      - tadarokat_data:/app/data
+      - tadarokat_media:/app/media
+      - tadarokat_static:/app/staticfiles
+      # فقط دو فایل اکسل در ریشه پروژه — همگام با ویندوز
+      - ./input.xlsx:/app/input.xlsx
+      - ./panel.xlsx:/app/panel.xlsx
+
+volumes:
+  tadarokat_data:
+  tadarokat_media:
+  tadarokat_static:

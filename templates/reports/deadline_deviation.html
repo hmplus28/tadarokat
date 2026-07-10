@@ -1,0 +1,452 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}گزارش انحراف مهلت{% endblock %}
+{% block page_title %}انحراف از مهلت ثبت درخواست{% endblock %}
+{% block page_subtitle %}ملاک انحراف درخواست: تاریخ درخواست کالا (در صورت خالی: تاریخ درخواست) — مهلت سفارش: ستون O در برابر AB{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% include 'reports/_report_header.html' %}
+    {% if unassigned.with_date > 0 and overall.evaluated == 0 %}
+    <div class="bg-red-50 border-2 border-red-300 rounded-xl p-5 text-sm">
+        <p class="font-bold text-red-800 text-base mb-2">⚠ چرا همه اعداد صفر هستند؟</p>
+        <p class="text-red-900 text-xs leading-relaxed mb-3">
+            از {{ overall.total|fa_comma }} پرونده، <strong>{{ unassigned.with_date|fa_comma }}</strong> پرونده تاریخ درخواست دارند
+            ولی <strong>هیچ‌کدام «گروه بندی کالایی» ندارند</strong>.
+            اکسل فعلی ستون گروه کالایی ندارد و استعلام‌های قبلی هم بدون گروه ثبت شده‌اند.
+            <strong>محاسبه انحراف درست است</strong> — فقط داده ورودی برای گروه‌بندی وجود ندارد.
+        </p>
+        <ul class="text-xs text-red-800 space-y-1 list-disc list-inside">
+            <li>در <strong>صدور استعلام جدید</strong> گروه کالایی را انتخاب کنید</li>
+            <li>یا {% if is_superuser %}در <a href="{% url 'accounts:category_deadline_list' %}" class="underline font-bold">تنظیم قوانین مهلت</a>{% else %}در تنظیم قوانین مهلت (سوپر یوزر){% endif %} برای هر گروه <strong>پیشوند کد کالا</strong> تعریف کنید تا پرونده‌های قدیمی خودکار تخصیص یابند</li>
+            <li>یا ستون «گروه بندی کالایی» را به اکسل اضافه و همگام‌سازی کنید</li>
+        </ul>
+    </div>
+    {% elif unassigned.total > 0 %}
+    <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 text-sm text-amber-950">
+        <p class="font-bold mb-1">{{ unassigned.with_date|fa_comma }} پرونده هنوز بدون گروه کالایی</p>
+        <p class="text-xs">پیشوند کد کالا را در تنظیم مهلت تعریف کنید یا گروه را هنگام صدور استعلام ثبت کنید.</p>
+    </div>
+    {% endif %}
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-950">
+        <p class="font-bold mb-1">منطق بررسی</p>
+        <ul class="text-xs space-y-1 list-disc list-inside text-amber-900">
+            <li><strong>روزهای مشخص:</strong> درخواست باید تا روز(های) تعریف‌شده همان ماه ثبت شده باشد (مثلاً ۵ و ۲۵)</li>
+            <li><strong>روزهای هفته:</strong> هر روزی که انتخاب شود (شنبه، یکشنبه، ...) — تمام وقوع آن روز در ماه شمسی</li>
+            <li>می‌توانید روز ماه و روز هفته را <strong>همزمان</strong> تعریف کنید</li>
+            <li>ملاک تاریخ: <strong>تاریخ درخواست کالا</strong> — اگر خالی باشد (درخواست مستقیم انبار) از <strong>تاریخ درخواست</strong> استفاده می‌شود</li>
+            <li>پرونده‌های بدون گروه کالایی یا بدون هر دو تاریخ در محاسبه انحراف لحاظ نمی‌شوند</li>
+        </ul>
+    </div>
+
+    {% include 'reports/_date_filter_form.html' with filter_title="فیلتر و جستجو (تاریخ ملاک: درخواست کالا یا درخواست)" clear_url=clear_url show_search=show_search filter_warning=filter_warning %}
+
+    <!-- خلاصه مهلت درخواست -->
+    <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+        <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
+        انحراف مهلت ثبت درخواست
+        {% if filter_params.period != 'all' %}<span class="text-xs font-normal text-slate-500">— {{ filter_label }}</span>{% endif %}
+    </h2>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">📋</div>
+            <p class="kpi-label">کل پرونده‌ها</p>
+            <p class="kpi-value">{{ overall.total|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">✓</div>
+            <p class="kpi-label">به‌موقع</p>
+            <p class="kpi-value text-emerald-600">{{ overall.on_time|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #ef4444">
+            <div class="kpi-icon bg-red-100 text-red-600">⚠</div>
+            <p class="kpi-label">انحراف</p>
+            <p class="kpi-value text-red-600">{{ overall.deviated|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #f59e0b">
+            <div class="kpi-icon bg-amber-100 text-amber-600">%</div>
+            <p class="kpi-label">نرخ انحراف</p>
+            <p class="kpi-value text-amber-600">{{ overall.rate|fa }}٪</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #94a3b8">
+            <div class="kpi-icon bg-slate-100 text-slate-600">؟</div>
+            <p class="kpi-label">بدون گروه/تاریخ</p>
+            <p class="kpi-value text-slate-600">{{ overall.no_category|add:overall.no_date|fa_comma }}</p>
+        </div>
+    </div>
+
+    <!-- انحراف مهلت سفارش -->
+    <div id="order-deadline" class="space-y-4 scroll-mt-6">
+        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+            <span class="w-1 h-4 bg-orange-500 rounded-full"></span>
+            انحراف مهلت سفارش (ستون O در برابر تاریخ سفارش AB)
+        </h2>
+        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-950">
+            <p class="font-bold mb-1">منطق بررسی سفارش</p>
+            <ul class="text-xs space-y-1 list-disc list-inside text-orange-900">
+                <li><strong>مهلت:</strong> ستون O اکسل (مهلت استعلام) — در صورت خالی بودن از ستون P استفاده می‌شود</li>
+                <li><strong>تاریخ واقعی:</strong> ستون AB اکسل (تاریخ سفارش)</li>
+                <li>سفارش <strong>به‌موقع</strong> است اگر تاریخ سفارش ≤ مهلت باشد</li>
+                <li>فقط پرونده‌هایی که هم مهلت و هم تاریخ سفارش دارند بررسی می‌شوند</li>
+            </ul>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div class="kpi-card" style="--kpi-color: #4f46e5">
+                <div class="kpi-icon bg-indigo-100 text-indigo-600">📦</div>
+                <p class="kpi-label">بررسی‌شده</p>
+                <p class="kpi-value">{{ order_overall.evaluated|fa_comma }}</p>
+            </div>
+            <div class="kpi-card" style="--kpi-color: #10b981">
+                <div class="kpi-icon bg-emerald-100 text-emerald-600">✓</div>
+                <p class="kpi-label">سفارش به‌موقع</p>
+                <p class="kpi-value text-emerald-600">{{ order_overall.on_time|fa_comma }}</p>
+            </div>
+            <div class="kpi-card" style="--kpi-color: #f97316">
+                <div class="kpi-icon bg-orange-100 text-orange-600">⚠</div>
+                <p class="kpi-label">انحراف سفارش</p>
+                <p class="kpi-value text-orange-600">{{ order_overall.deviated|fa_comma }}</p>
+            </div>
+            <div class="kpi-card" style="--kpi-color: #f59e0b">
+                <div class="kpi-icon bg-amber-100 text-amber-600">%</div>
+                <p class="kpi-label">نرخ انحراف</p>
+                <p class="kpi-value text-amber-600">{{ order_overall.rate|fa }}٪</p>
+            </div>
+            <div class="kpi-card" style="--kpi-color: #94a3b8">
+                <div class="kpi-icon bg-slate-100 text-slate-600">؟</div>
+                <p class="kpi-label">بدون مهلت/تاریخ</p>
+                <p class="kpi-value text-slate-600">{{ order_overall.no_deadline|add:order_overall.no_order_date|fa_comma }}</p>
+            </div>
+        </div>
+
+        <!-- کارشناسان -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="w-1 h-5 bg-orange-500 rounded-full"></span>
+                انحراف مهلت سفارش به تفکیک کارشناس
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="data-table text-xs">
+                    <thead>
+                        <tr>
+                            <th>کارشناس</th>
+                            <th>کل پرونده</th>
+                            <th>بررسی‌شده</th>
+                            <th>به‌موقع</th>
+                            <th>انحراف</th>
+                            <th>نرخ انحراف</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ex in order_expert_stats %}
+                        {% if ex.evaluated > 0 %}
+                        <tr>
+                            <td class="font-medium text-slate-800">{{ ex.name }}</td>
+                            <td>{{ ex.total|fa_comma }}</td>
+                            <td>{{ ex.evaluated|fa_comma }}</td>
+                            <td class="text-emerald-700 font-bold">{{ ex.on_time|fa_comma }}</td>
+                            <td class="text-orange-700 font-bold">{{ ex.deviated|fa_comma }}</td>
+                            <td>
+                                <span class="font-bold {% if ex.rate > 0 %}text-orange-600{% else %}text-emerald-600{% endif %}">
+                                    {{ ex.rate|fa }}٪
+                                </span>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-slate-400 py-4">داده‌ای نیست</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- گروه کالایی (سفارش) -->
+        {% if order_category_stats %}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="w-1 h-5 bg-violet-500 rounded-full"></span>
+                انحراف مهلت سفارش به تفکیک گروه کالایی
+            </h3>
+            <p class="text-xs text-slate-500 mb-3">روی کارت گروه‌های دارای انحراف کلیک کنید تا لیست پرونده‌ها با جزئیات نمایش داده شود.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {% for cat in order_category_stats %}
+                {% if cat.evaluated > 0 %}
+                {% if cat.deviated > 0 %}
+                <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}cat_kind=order&cat={{ cat.name|urlencode }}#cat-drilldown"
+                   class="block rounded-xl border p-4 border-orange-200 bg-orange-50/20 hover:ring-2 hover:ring-orange-300 transition cursor-pointer {% if selected_cat == cat.name and selected_cat_kind == 'order' %}ring-2 ring-orange-500{% endif %}">
+                {% else %}
+                <div class="rounded-xl border p-4 border-emerald-200 bg-emerald-50/20">
+                {% endif %}
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-slate-800 text-sm">{{ cat.name }}</h4>
+                        <span class="badge {% if cat.deviated > 0 %}badge-amber{% else %}badge-green{% endif %} text-[10px]">
+                            {{ cat.rate|fa }}٪
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-500">بررسی: <strong>{{ cat.evaluated|fa_comma }}</strong></span>
+                        <span class="text-emerald-600">✓ <strong>{{ cat.on_time|fa_comma }}</strong></span>
+                        <span class="text-orange-600">⚠ <strong>{{ cat.deviated|fa_comma }}</strong></span>
+                    </div>
+                    {% if cat.deviated > 0 %}
+                    <p class="text-[10px] text-orange-600 mt-2">کلیک برای مشاهده {{ cat.deviated|fa_comma }} پرونده انحرافی ←</p>
+                </a>
+                    {% else %}
+                </div>
+                    {% endif %}
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% if selected_cat_kind == 'order' %}
+            {% include 'reports/_category_deviation_drilldown.html' %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- تمام پرونده‌های مهلت سفارش -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-orange-50/50 flex flex-wrap justify-between items-center gap-2">
+                <div>
+                    <h3 class="font-bold text-slate-800">تمام پرونده‌های مهلت سفارش</h3>
+                    <p class="text-xs text-slate-500 mt-1">هر صفحه ۱۰۰ مورد — {{ order_cases_by_expert|length|fa }} کارشناس</p>
+                </div>
+                <span class="badge badge-slate text-[10px]">{{ order_cases_total|fa_comma }} پرونده</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="data-table text-xs">
+                    <thead>
+                        <tr>
+                            <th>کارشناس</th>
+                            <th>شماره خرید</th>
+                            <th>عنوان کالا</th>
+                            <th>مهلت (O)</th>
+                            <th>تاریخ سفارش (AB)</th>
+                            <th>وضعیت</th>
+                            <th>تأخیر</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for case in order_page_obj %}
+                        <tr class="{% if case.status_code == 'deviated' %}bg-orange-50/60{% endif %}">
+                            <td class="font-medium text-slate-700">{{ case.expert_name }}</td>
+                            <td class="font-bold text-indigo-600">{{ case.purchase_number|fa }}</td>
+                            <td class="text-slate-600 max-w-[180px] truncate">{{ case.product_title|default:"—" }}</td>
+                            <td class="font-mono">{{ case.deadline|fa }}</td>
+                            <td class="font-mono {% if case.status_code == 'deviated' %}text-orange-700 font-bold{% endif %}">{{ case.order_date|fa }}</td>
+                            <td>
+                                {% if case.status_code == 'deviated' %}
+                                <span class="badge badge-amber text-[10px]">{{ case.status }}</span>
+                                {% else %}
+                                <span class="badge badge-green text-[10px]">{{ case.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="{% if case.delay_days > 0 %}text-orange-600 font-bold{% else %}text-slate-400{% endif %}">
+                                {% if case.delay_days > 0 %}{{ case.delay_days|fa }}{% else %}—{% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'purchases:detail' case.pk %}" class="text-indigo-600 hover:underline">جزئیات</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-center text-slate-400 py-8">پرونده‌ای با مهلت و تاریخ سفارش یافت نشد</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if order_page_obj.paginator.count > 0 %}
+            <div class="px-6 py-3.5 border-t border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
+                <span class="text-xs text-slate-500">
+                    نمایش {{ order_page_obj.start_index|fa }} تا {{ order_page_obj.end_index|fa }} از {{ order_page_obj.paginator.count|fa_comma }}
+                </span>
+                {% if order_page_obj.has_other_pages %}
+                <div class="flex items-center gap-1.5">
+                    {% if order_page_obj.has_previous %}
+                    <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}order_page={{ order_page_obj.previous_page_number }}"
+                       class="btn btn-ghost !py-1.5 !px-3 !text-xs">قبلی</a>
+                    {% endif %}
+                    <span class="px-3 py-1.5 text-xs bg-orange-600 text-white rounded-lg font-bold">
+                        {{ order_page_obj.number|fa }} / {{ order_page_obj.paginator.num_pages|fa }}
+                    </span>
+                    {% if order_page_obj.has_next %}
+                    <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}order_page={{ order_page_obj.next_page_number }}"
+                       class="btn btn-ghost !py-1.5 !px-3 !text-xs">بعدی</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- گروه‌های کالایی (درخواست) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-1 h-5 bg-indigo-500 rounded-full"></span>
+                انحراف مهلت درخواست به تفکیک گروه کالایی
+            </h3>
+            {% if is_superuser %}
+            <a href="{% url 'accounts:category_deadline_list' %}" class="text-xs text-indigo-600 hover:underline">تنظیم قوانین مهلت ←</a>
+            {% endif %}
+        </div>
+        <p class="text-xs text-slate-500 mb-3">روی کارت گروه‌های دارای انحراف کلیک کنید تا لیست پرونده‌ها با جزئیات نمایش داده شود.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {% for cat in category_stats %}
+            {% if cat.deviated > 0 %}
+            <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}cat_kind=request&cat={{ cat.name|urlencode }}#cat-drilldown"
+               class="block rounded-xl border-2 p-4 border-red-200 bg-red-50/30 hover:ring-2 hover:ring-red-300 transition cursor-pointer {% if selected_cat == cat.name and selected_cat_kind == 'request' %}ring-2 ring-red-500{% endif %}">
+            {% else %}
+            <div class="rounded-xl border-2 p-4 {% if cat.total == 0 %}border-slate-200 bg-slate-50/50{% else %}border-emerald-200 bg-emerald-50/20{% endif %}">
+            {% endif %}
+                <div class="flex justify-between items-start gap-2 mb-2">
+                    <h4 class="font-bold text-slate-800 text-sm">{{ cat.name }}</h4>
+                    {% if cat.total == 0 %}
+                    <span class="badge badge-slate text-[10px]">بدون پرونده</span>
+                    {% elif cat.deviated > 0 %}
+                    <span class="badge badge-red text-[10px]">{{ cat.deviated|fa_comma }} انحراف</span>
+                    {% elif cat.evaluated > 0 %}
+                    <span class="badge badge-green text-[10px]">✓</span>
+                    {% endif %}
+                </div>
+                <p class="text-[11px] text-slate-500 mb-1">{{ cat.rule }}</p>
+                {% if cat.total == 0 and not cat.code_prefixes %}
+                <p class="text-[10px] text-amber-600 mb-2">هیچ پرونده‌ای با این گروه ثبت نشده — پیشوند کد کالا تعریف کنید</p>
+                {% elif cat.total == 0 and cat.code_prefixes %}
+                <p class="text-[10px] text-amber-600 mb-2">پیشوند: {{ cat.code_prefixes }} — هیچ کدی منطبق نشد</p>
+                {% endif %}
+                <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div class="bg-white/80 rounded-lg py-2 border border-slate-100">
+                        <p class="text-slate-400">بررسی‌شده</p>
+                        <p class="font-bold text-slate-800">{{ cat.evaluated|fa_comma }}</p>
+                    </div>
+                    <div class="bg-white/80 rounded-lg py-2 border border-emerald-100">
+                        <p class="text-emerald-600">به‌موقع</p>
+                        <p class="font-bold text-emerald-700">{{ cat.on_time|fa_comma }}</p>
+                    </div>
+                    <div class="bg-white/80 rounded-lg py-2 border border-red-100">
+                        <p class="text-red-600">انحراف</p>
+                        <p class="font-bold text-red-700">{{ cat.deviated|fa_comma }}</p>
+                    </div>
+                </div>
+                {% if cat.evaluated > 0 %}
+                <div class="mt-3 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div class="h-full bg-red-500 rounded-full" style="width: {{ cat.rate }}%"></div>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1 text-left">{{ cat.rate|fa }}٪ انحراف</p>
+                {% endif %}
+                {% if cat.deviated > 0 %}
+                <p class="text-[10px] text-red-600 mt-2">کلیک برای مشاهده پرونده‌های انحرافی ←</p>
+            </a>
+                {% else %}
+            </div>
+                {% endif %}
+            {% empty %}
+            <p class="text-slate-400 text-sm col-span-full text-center py-6">گروه کالایی فعالی نیست</p>
+            {% endfor %}
+        </div>
+        {% if selected_cat_kind == 'request' %}
+        {% include 'reports/_category_deviation_drilldown.html' %}
+        {% endif %}
+    </div>
+
+    <!-- انبار مقصد -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-5 bg-cyan-500 rounded-full"></span>
+            انحراف به تفکیک انبار مقصد
+        </h3>
+        <p class="text-xs text-slate-500 mb-4">انبار از استعلام صادرشده — پرونده‌های بدون استعلام در «در انتظار تعیین انبار»</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {% for wh in warehouse_stats %}
+            <div class="rounded-xl border border-slate-200 p-4 {% if wh.deviated > 0 %}bg-red-50/20{% endif %}">
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="font-bold text-slate-800 text-sm">{{ wh.name }}</h4>
+                    {% if wh.deviated > 0 %}
+                    <span class="badge badge-red text-[10px]">{{ wh.rate|fa }}٪</span>
+                    {% endif %}
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-slate-500">کل: <strong>{{ wh.total|fa_comma }}</strong></span>
+                    <span class="text-emerald-600">به‌موقع: <strong>{{ wh.on_time|fa_comma }}</strong></span>
+                    <span class="text-red-600">انحراف: <strong>{{ wh.deviated|fa_comma }}</strong></span>
+                </div>
+                <div class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full {% if wh.deviated > 0 %}bg-red-500{% else %}bg-emerald-500{% endif %} rounded-full"
+                         style="width: {% if wh.deviated > 0 %}{{ wh.rate }}{% else %}100{% endif %}%"></div>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-slate-400 text-sm col-span-full text-center py-6">داده‌ای برای انبارها نیست</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- پرونده‌های انحراف مهلت درخواست -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-red-50/50 flex flex-wrap justify-between items-center gap-2">
+            <div>
+                <h3 class="font-bold text-slate-800">پرونده‌های دارای انحراف مهلت درخواست</h3>
+                <p class="text-xs text-slate-500 mt-1">هر صفحه ۱۰۰ مورد</p>
+            </div>
+            <span class="badge badge-slate text-[10px]">{{ request_deviated_total|fa_comma }} پرونده</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table text-xs">
+                <thead>
+                    <tr>
+                        <th>شماره خرید</th>
+                        <th>گروه کالایی</th>
+                        <th>تاریخ ملاک</th>
+                        <th>منبع تاریخ</th>
+                        <th>انبار</th>
+                        <th>مهلت مجاز</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in req_page_obj %}
+                    <tr>
+                        <td class="font-bold text-indigo-600">{{ item.purchase_number|fa }}</td>
+                        <td>{{ item.product_category|default:"—" }}</td>
+                        <td class="font-mono">{{ item.effective_date|default:item.purchase_date|fa }}</td>
+                        <td class="text-slate-500">{{ item.date_source_label|default:"—" }}</td>
+                        <td>{{ item.warehouse|default:"—" }}</td>
+                        <td class="text-slate-500">{{ item.deadline_info }}</td>
+                        <td>
+                            <a href="{% url 'purchases:detail' item.pk %}" class="text-indigo-600 hover:underline">جزئیات</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-slate-400 py-6">انحرافی ثبت نشده یا همه به‌موقعند</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if req_page_obj.paginator.count > 0 %}
+        <div class="px-6 py-3.5 border-t border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
+            <span class="text-xs text-slate-500">
+                نمایش {{ req_page_obj.start_index|fa }} تا {{ req_page_obj.end_index|fa }} از {{ req_page_obj.paginator.count|fa_comma }}
+            </span>
+            {% if req_page_obj.has_other_pages %}
+            <div class="flex items-center gap-1.5">
+                {% if req_page_obj.has_previous %}
+                <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}req_page={{ req_page_obj.previous_page_number }}"
+                   class="btn btn-ghost !py-1.5 !px-3 !text-xs">قبلی</a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg font-bold">
+                    {{ req_page_obj.number|fa }} / {{ req_page_obj.paginator.num_pages|fa }}
+                </span>
+                {% if req_page_obj.has_next %}
+                <a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}req_page={{ req_page_obj.next_page_number }}"
+                   class="btn btn-ghost !py-1.5 !px-3 !text-xs">بعدی</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

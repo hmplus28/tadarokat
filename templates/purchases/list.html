@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}درخواست‌های خرید{% endblock %}
+{% block page_title %}{% if is_expert_view %}پرونده‌های من{% elif is_requester_view %}گردش کار خرید{% else %}درخواست‌های خرید{% endif %}{% endblock %}
+{% block page_subtitle %}{% if is_expert_view %}{{ expert_label }} — فقط پرونده‌های ارجاع‌شده به شما{% elif is_requester_view %}حوزه {{ scope_label }} — پیگیری وضعیت، مبالغ و شماره‌ها{% else %}مدیریت و پیگیری کلیه درخواست‌ها{% endif %}{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <!-- KPI Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="kpi-card" style="--kpi-color: #4f46e5">
+            <div class="kpi-icon bg-indigo-100 text-indigo-600">📋</div>
+            <p class="kpi-label">کل درخواست‌ها</p>
+            <p class="kpi-value">{{ page_obj.paginator.count|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #f59e0b">
+            <div class="kpi-icon bg-amber-100 text-amber-600">⚠️</div>
+            <p class="kpi-label">نیازمند اقدام</p>
+            <p class="kpi-value text-amber-600">{{ pending_count|default:0|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #3b82f6">
+            <div class="kpi-icon bg-blue-100 text-blue-600">📄</div>
+            <p class="kpi-label">استعلام صادر شده</p>
+            <p class="kpi-value text-blue-600">{{ inquiry_count|default:0|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #8b5cf6">
+            <div class="kpi-icon bg-violet-100 text-violet-600">💰</div>
+            <p class="kpi-label">پرداخت شده</p>
+            <p class="kpi-value text-violet-600">{{ paid_count|default:0|fa_comma }}</p>
+        </div>
+        <div class="kpi-card" style="--kpi-color: #10b981">
+            <div class="kpi-icon bg-emerald-100 text-emerald-600">✅</div>
+            <p class="kpi-label">تحویل شده</p>
+            <p class="kpi-value text-emerald-600">{{ delivered_count|default:0|fa_comma }}</p>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-5">
+                <label class="form-label">جستجوی آزاد</label>
+                <input type="text" name="search" value="{{ search }}"
+                    placeholder="شماره خرید، شماره سفارش، کالا، کارشناس..." class="form-input">
+            </div>
+            {% if not is_expert_view %}
+            <div class="md:col-span-2">
+                <label class="form-label">کارشناس</label>
+                <select name="expert" class="form-input">
+                    <option value="">همه کارشناسان</option>
+                    {% for exp in experts_list %}
+                    <option value="{{ exp }}" {% if exp == expert %}selected{% endif %}>{{ exp }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="md:col-span-2">
+                <label class="form-label">وضعیت فعلی</label>
+                <select name="status" class="form-input">
+                    <option value="">همه وضعیت‌ها</option>
+                    {% for code, name in status_choices %}
+                    <option value="{{ code }}" {% if code == status %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="md:col-span-3 flex gap-2">
+                <button type="submit" class="btn btn-primary flex-1">اعمال فیلتر</button>
+                <a href="{% url 'purchases:list' %}" class="btn btn-ghost" title="پاک کردن">✕</a>
+            </div>
+        </form>
+
+        <!-- Quick Filter Chips -->
+        <div class="pt-4 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+            <span class="text-xs text-slate-400 font-semibold">فیلتر سریع:</span>
+            <a href="{% url 'purchases:list' %}" class="chip {% if not filter_type %}active{% endif %}">📋 همه</a>
+            <a href="?filter=no_inquiry" class="chip {% if filter_type == 'no_inquiry' %}active amber{% endif %}">⚠️
+                نیازمند اقدام</a>
+            <a href="?filter=inquiry" class="chip {% if filter_type == 'inquiry' %}active blue{% endif %}">📄 دارای
+                استعلام</a>
+            <a href="?filter=delivered" class="chip {% if filter_type == 'delivered' %}active emerald{% endif %}">✅
+                تحویل شده</a>
+            <a href="?filter=paid" class="chip {% if filter_type == 'paid' %}active violet{% endif %}">💰 پرداخت شده</a>
+        </div>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="flex justify-between items-center">
+        <p class="text-sm text-slate-600">
+            <span class="font-bold text-slate-900">{{ page_obj.paginator.count|fa_comma }}</span> رکورد یافت شد
+            {% if search %}<span class="text-slate-400 text-xs">· جستجو: "{{ search }}"</span>{% endif %}
+        </p>
+        <div class="flex gap-2">
+            <a href="{% url 'purchases:export' %}{% if search %}?search={{ search }}{% endif %}"
+                class="btn btn-ghost !py-2 !text-xs">
+                📥 خروجی اکسل
+            </a>
+            {% if user_role == 'expert' or user_role == 'admin' %}
+            <a href="{% url 'purchases:list' %}?filter=no_inquiry" class="btn btn-primary !py-2 !text-xs expert-only">
+                📄 صدور استعلام جدید
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto" style="max-height: calc(100vh - 400px);">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>شماره</th>
+                        <th>عنوان کالا</th>
+                        <th>کارشناس</th>
+                        <th>تاریخ</th>
+                        <th>وضعیت</th>
+                        <th>وضعیت فعلی</th>
+                        <th class="text-center">عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in page_obj %}
+                    <tr onclick="window.location='{% url 'purchases:detail' p.pk %}'">
+                        <td class="font-bold text-indigo-600">{{ p.purchase_number|fa }}</td>
+                        <td>
+                            <div class="truncate max-w-[250px] font-medium" title="{{ p.product_title }}">{{ p.product_title|default:"—" }}</div>
+                            {% if p.product_code %}<div class="text-[10px] text-slate-400 font-mono mt-0.5">{{ p.product_code|fa }}</div>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.expert_name %}
+                            <div class="flex items-center gap-2">
+                                <div
+                                    class="w-7 h-7 avatar-gradient rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-sm ring-1 ring-white">
+                                    {{ p.expert_name|slice:":1" }}
+                                </div>
+                                <span class="text-xs text-slate-700">{{ p.expert_name }}</span>
+                            </div>
+                            {% else %}<span class="text-slate-300">—</span>{% endif %}
+                        </td>
+                        <td class="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+                            {{ p.purchase_date|default:"—" }}
+                            {% if p.deadline_deviated %}
+                            <span class="badge badge-red text-[10px] mr-1" title="انحراف از مهلت گروه کالایی">⚠ انحراف</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if p.is_order_stopped %}<span class="badge badge-red">{{ p.display_status }}</span>
+                            {% elif p.display_status == 'بسته شده' %}<span class="badge badge-green">{{ p.display_status }}</span>
+                            {% elif p.display_status == 'در جريان' %}<span class="badge badge-blue">{{ p.display_status }}</span>
+                            {% else %}<span class="badge badge-slate">{{ p.display_status|default:"—" }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.current_status == 'delivered' %}<span class="badge badge-green">✅ {{ p.current_status_fa }}</span>
+                            {% elif p.current_status == 'paid' %}<span class="badge badge-purple">💰 {{ p.current_status_fa }}</span>
+                            {% elif p.current_status == 'order_stopped' %}<span class="badge badge-red">⏸ {{ p.current_status_fa }}</span>
+                            {% elif p.current_status == 'order_placed' %}<span class="badge badge-blue">🛒 {{ p.current_status_fa }}</span>
+                            {% elif p.current_status == 'inquiry_issued' %}<span class="badge badge-blue">📋 {{ p.current_status_fa }}</span>
+                            {% elif p.current_status == 'order_issued' %}<span class="badge badge-purple">📝 {{ p.current_status_fa }}</span>
+                            {% elif p.current_status == 'waiting_payment' %}<span class="badge badge-amber">💳 {{ p.current_status_fa }}</span>
+                            {% else %}<span class="badge badge-amber">⏳ {{ p.current_status_fa }}</span>{% endif %}
+                        </td>
+                        <td class="text-center" onclick="event.stopPropagation()">
+                            <div class="flex items-center justify-center gap-1.5">
+                                {% if p.can_issue_inquiry and user_role != 'warehouse' %}
+                                <a href="{% url 'inquiries:issue' p.pk %}"
+                                    class="btn btn-primary !py-1 !px-2.5 !text-[11px]" title="صدور استعلام">📄</a>
+                                {% endif %}
+                                <a href="{% url 'purchases:detail' p.pk %}"
+                                    class="btn btn-ghost !py-1 !px-2.5 !text-[11px]">جزئیات</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <p class="font-bold text-slate-600 text-lg mb-1">هیچ رکوردی یافت نشد</p>
+                                <p class="text-sm">فیلترها را تغییر دهید</p>
+                                {% if search or filter_type %}
+                                <a href="{% url 'purchases:list' %}" class="btn btn-ghost mt-4">پاک کردن فیلترها</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="px-5 py-3.5 border-t border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <span class="text-xs text-slate-500">
+                نمایش {{ page_obj.start_index|fa }} تا {{ page_obj.end_index|fa }} از {{ page_obj.paginator.count|fa_comma }}
+            </span>
+            <div class="flex gap-1.5">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if expert %}&expert={{ expert }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if filter_type %}&filter={{ filter_type }}{% endif %}"
+                    class="btn btn-ghost !py-1.5 !px-3 !text-xs">قبلی</a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-bold">
+                    {{ page_obj.number|fa }} / {{ page_obj.paginator.num_pages|fa }}
+                </span>
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if expert %}&expert={{ expert }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if filter_type %}&filter={{ filter_type }}{% endif %}"
+                    class="btn btn-ghost !py-1.5 !px-3 !text-xs">بعدی</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div id="contextMenu"
+    class="hidden fixed z-50 bg-white rounded-xl shadow-2xl border border-slate-200 min-w-[200px] py-1 text-sm">
+    <button id="ctxView" class="w-full text-right px-4 py-2 hover:bg-slate-50 flex items-center gap-2"
+        onclick="ctxAction('view')">
+        👁️ مشاهده جزئیات
+    </button>
+    <button id="ctxIssue" class="hidden w-full text-right px-4 py-2 hover:bg-slate-50 flex items-center gap-2"
+        onclick="ctxAction('issue')">
+        📄 صدور استعلام
+    </button>
+    <button id="ctxEdit" class="hidden w-full text-right px-4 py-2 hover:bg-slate-50 flex items-center gap-2"
+        onclick="ctxAction('edit')">
+        ✏️ ویرایش
+    </button>
+</div>
+
+<!-- Detail Modal -->
+<div id="detailModal" class="modal-overlay hidden" onclick="TadarokatApp.modal.closeOnOverlay(event, 'detailModal')">
+    <div class="modal max-w-4xl max-h-[92vh] flex flex-col">
+        <div
+            class="px-6 py-4 border-b bg-gradient-to-l from-indigo-50 to-white shrink-0 flex justify-between items-center">
+            <div>
+                <h3 id="detailTitle" class="font-bold text-lg text-slate-900">جزئیات خرید</h3>
+                <p id="detailSubtitle" class="text-xs text-slate-500 mt-0.5"></p>
+            </div>
+            <button onclick="TadarokatApp.modal.close('detailModal')"
+                class="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+        </div>
+        <div id="detailContent" class="p-6 overflow-y-auto flex-1 min-h-0">
+            <div class="flex items-center justify-center py-12">
+                <div class="spinner"></div>
+            </div>
+        </div>
+        <div id="detailActions" class="px-6 py-4 border-t bg-slate-50 shrink-0 flex gap-2 justify-end">
+            <!-- Actions will be populated dynamically -->
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentContextPurchaseId = null;
+
+    // Override onclick on table rows
+    document.querySelectorAll('tr[onclick^="window.location"]').forEach(tr => {
+        const url = tr.getAttribute('onclick').match(/'([^']+)'/)[1];
+        const pkMatch = url.match(/\/(\d+)\//);
+        if (pkMatch) {
+            tr.removeAttribute('onclick');
+            tr.dataset.purchaseId = pkMatch[1];
+            tr.addEventListener('click', () => openDetailModal(pkMatch[1]));
+            tr.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showContextMenu(e, pkMatch[1]);
+            });
+        }
+    });
+
+    async function openDetailModal(pk) {
+        TadarokatApp.modal.open('detailModal');
+        document.getElementById('detailContent').innerHTML = '<div class="flex items-center justify-center py-12"><div class="spinner"></div></div>';
+
+        try {
+            const data = await TadarokatApp.api(`/inquiries/api/purchase-detail/${pk}/`);
+            renderDetailModal(data);
+        } catch (e) {
+            document.getElementById('detailContent').innerHTML = '<p class="text-center text-red-500 py-8">خطا در بارگذاری</p>';
+        }
+    }
+
+    function renderDetailModal(p) {
+        document.getElementById('detailTitle').textContent = `خرید #${toPersianDigits(p.purchase_number)}`;
+        document.getElementById('detailSubtitle').textContent = p.product_title;
+
+        const statusColor = {
+            'delivered': 'emerald',
+            'paid': 'violet',
+            'order_placed': 'blue',
+            'order_issued': 'purple',
+            'inquiry_issued': 'blue',
+        }[p.current_status] || 'amber';
+
+        let html = `
+            <!-- KPI Row -->
+            <div class="grid grid-cols-4 gap-3 mb-6">
+                <div class="kpi-card" style="--kpi-color: #4f46e5">
+                    <p class="kpi-label">کد کالا</p>
+                    <p class="text-lg font-bold text-slate-800 font-mono">${toPersianDigits(p.product_code) || '—'}</p>
+                </div>
+                <div class="kpi-card" style="--kpi-color: #10b981">
+                    <p class="kpi-label">مقدار درخواست</p>
+                    <p class="text-lg font-bold text-emerald-600">${toPersianNumber(p.quantity)} <span class="text-xs text-slate-500">${p.unit}</span></p>
+                </div>
+                <div class="kpi-card" style="--kpi-color: #3b82f6">
+                    <p class="kpi-label">تاریخ ثبت</p>
+                    <p class="text-lg font-bold text-slate-800">${toPersianDigits(p.purchase_date) || '—'}</p>
+                </div>
+                <div class="kpi-card" style="--kpi-color: #f59e0b">
+                    <p class="kpi-label">تاریخ نیاز</p>
+                    <p class="text-lg font-bold text-amber-600">${toPersianDigits(p.required_date) || '—'}</p>
+                </div>
+            </div>
+            
+            <!-- Info Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white rounded-xl border border-slate-200 p-5">
+                    <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <span class="w-1 h-5 bg-indigo-500 rounded-full"></span>
+                        اطلاعات کالا
+                    </h4>
+                    <dl class="space-y-3 text-sm">
+                        <div class="flex justify-between"><dt class="text-slate-500">عنوان</dt><dd class="font-medium text-slate-800 text-left max-w-[60%]">${p.product_title}</dd></div>
+                        <div class="flex justify-between"><dt class="text-slate-500">درخواست کننده</dt><dd class="font-medium">${p.requester || '—'}</dd></div>
+                        <div class="flex justify-between"><dt class="text-slate-500">کارشناس</dt><dd class="font-medium">${p.expert_name || '—'}</dd></div>
+                        <div class="flex justify-between"><dt class="text-slate-500">واحد تامین</dt><dd class="font-medium">${p.supply_unit || '—'}</dd></div>
+                    </dl>
+                </div>
+                
+                <div class="bg-white rounded-xl border border-slate-200 p-5">
+                    <h4 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <span class="w-1 h-5 bg-emerald-500 rounded-full"></span>
+                        وضعیت فعلی
+                    </h4>
+                    <div class="mb-4">
+                        <span class="badge badge-${statusColor} text-sm px-4 py-2">${p.current_status_display || statusLabel(p.current_status)}</span>
+                    </div>
+                    <dl class="space-y-3 text-sm">
+                        <div class="flex justify-between"><dt class="text-slate-500">شماره استعلام</dt><dd class="font-mono ${p.inquiry_number ? 'text-indigo-600 font-bold' : ''}">${toPersianDigits(p.inquiry_number) || '—'}</dd></div>
+                        <div class="flex justify-between"><dt class="text-slate-500">شماره دستور</dt><dd class="font-mono ${p.order_number ? 'text-violet-600 font-bold' : ''}">${toPersianDigits(p.order_number) || '—'}</dd></div>
+                        <div class="flex justify-between"><dt class="text-slate-500">شماره تحویل</dt><dd class="font-mono ${p.delivery_number ? 'text-emerald-600 font-bold' : ''}">${toPersianDigits(p.delivery_number) || '—'}</dd></div>
+                    </dl>
+                </div>
+            </div>
+            
+            ${p.description ? `
+            <div class="bg-slate-50 rounded-xl p-4 mb-6">
+                <p class="text-xs font-bold text-slate-500 mb-2 uppercase">توضیحات</p>
+                <p class="text-sm text-slate-700 leading-relaxed">${p.description}</p>
+            </div>
+            ` : ''}
+            
+            ${p.siblings && p.siblings.length > 1 ? `
+            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div class="px-5 py-3 border-b bg-slate-50">
+                    <h4 class="font-bold text-sm text-slate-800">سایر اقلام این درخواست (${toPersianDigits(p.siblings.length)} قلم)</h4>
+                </div>
+                <table class="data-table !text-xs">
+                    <thead>
+                        <tr>
+                            <th>خط</th>
+                            <th>عنوان</th>
+                            <th>کد</th>
+                            <th>مقدار</th>
+                            <th>وضعیت</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${p.siblings.map(s => `
+                            <tr class="${s.id === p.id ? 'bg-indigo-50' : ''}">
+                                <td class="font-bold">${toPersianDigits(s.line_number)}</td>
+                                <td>${s.product_title}</td>
+                                <td class="font-mono text-slate-500">${toPersianDigits(s.product_code) || '—'}</td>
+                                <td>${toPersianNumber(s.quantity)} ${s.unit}</td>
+                                <td><span class="badge badge-slate">${s.current_status_display || statusLabel(s.current_status)}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            ` : ''}
+        `;
+
+        document.getElementById('detailContent').innerHTML = html;
+
+        // Actions
+        let actions = `
+            <button onclick="TadarokatApp.modal.close('detailModal')" class="btn btn-ghost">بستن</button>
+            <a href="/purchases/${p.id}/" class="btn btn-primary">مشاهده صفحه کامل</a>
+        `;
+
+        if (!p.inquiry_number && p.current_status === 'waiting_inquiry') {
+            actions = `
+                <a href="/inquiries/issue/${p.id}/" class="btn btn-success">📄 صدور استعلام</a>
+            ` + actions;
+        }
+
+        document.getElementById('detailActions').innerHTML = actions;
+    }
+
+    function showContextMenu(e, pk) {
+        currentContextPurchaseId = pk;
+        const menu = document.getElementById('contextMenu');
+        menu.style.left = e.pageX + 'px';
+        menu.style.top = e.pageY + 'px';
+        menu.classList.remove('hidden');
+    }
+
+    function ctxAction(action) {
+        const pk = currentContextPurchaseId;
+        document.getElementById('contextMenu').classList.add('hidden');
+
+        if (action === 'view') openDetailModal(pk);
+        else if (action === 'issue') window.location.href = `/inquiries/issue/${pk}/`;
+        else if (action === 'edit') window.location.href = `/purchases/${pk}/`;
+    }
+
+    document.addEventListener('click', () => {
+        document.getElementById('contextMenu').classList.add('hidden');
+    });
+</script>
+{% endblock %}

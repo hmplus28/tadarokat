@@ -1,0 +1,113 @@
+{% load custom_filters %}
+{% if selected_cat and selected_cat_kind %}
+<div id="cat-drilldown" class="bg-white rounded-2xl shadow-sm border-2 border-indigo-200 overflow-hidden scroll-mt-6">
+    <div class="px-6 py-4 border-b border-indigo-100 bg-indigo-50/50 flex flex-wrap justify-between items-center gap-2">
+        <div>
+            <h3 class="font-bold text-slate-800">
+                {% if selected_cat_kind == 'request' %}
+                انحراف مهلت درخواست — {{ selected_cat }}
+                {% elif selected_cat_kind == 'order' %}
+                انحراف مهلت سفارش — {{ selected_cat }}
+                {% elif selected_cat_kind == 'payment' %}
+                انحراف لید تایم پرداخت — {{ selected_cat }}
+                {% endif %}
+            </h3>
+            {% if cat_page_obj %}
+            <p class="text-xs text-slate-500 mt-1">
+                نمایش {{ cat_page_obj.start_index|fa }} تا {{ cat_page_obj.end_index|fa }} از {{ cat_page_obj.paginator.count|fa_comma }} پرونده — هر صفحه ۱۰۰ مورد
+            </p>
+            {% endif %}
+        </div>
+        <a href="?{% if drilldown_query %}{{ drilldown_query }}{% endif %}" class="text-xs text-slate-500 hover:text-indigo-600 font-medium">بستن جزئیات ✕</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="data-table text-xs">
+            <thead>
+                <tr>
+                    {% if selected_cat_kind == 'request' %}
+                    <th>شماره خرید</th>
+                    <th>عنوان کالا</th>
+                    <th>تاریخ ملاک</th>
+                    <th>منبع</th>
+                    <th>انبار</th>
+                    <th>مهلت مجاز</th>
+                    {% elif selected_cat_kind == 'order' %}
+                    <th>شماره خرید</th>
+                    <th>عنوان کالا</th>
+                    <th>کارشناس</th>
+                    <th>مهلت (O)</th>
+                    <th>تاریخ سفارش (AB)</th>
+                    <th>تأخیر (روز)</th>
+                    {% elif selected_cat_kind == 'payment' %}
+                    <th>شماره خرید</th>
+                    <th>عنوان کالا</th>
+                    <th>کارشناس</th>
+                    <th>ثبت (AP)</th>
+                    <th>انجام (AQ)</th>
+                    <th>روز واقعی</th>
+                    <th>مهلت</th>
+                    <th>تأخیر</th>
+                    {% endif %}
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cat_cases %}
+                <tr class="{% if selected_cat_kind == 'order' %}bg-orange-50/40{% elif selected_cat_kind == 'payment' %}bg-red-50/30{% else %}bg-red-50/30{% endif %}">
+                    <td class="font-bold text-indigo-600">{{ item.purchase_number|fa }}</td>
+                    <td class="text-slate-600 max-w-[180px] truncate">{{ item.product_title|default:"—" }}</td>
+                    {% if selected_cat_kind == 'request' %}
+                    <td class="font-mono">{{ item.effective_date|default:item.purchase_date|fa }}</td>
+                    <td class="text-slate-500">{{ item.date_source_label|default:"—" }}</td>
+                    <td>{{ item.warehouse|default:"—" }}</td>
+                    <td class="text-slate-500">{{ item.deadline_info }}</td>
+                    {% elif selected_cat_kind == 'order' %}
+                    <td>{{ item.expert_name|default:"—" }}</td>
+                    <td class="font-mono">{{ item.deadline|fa }}</td>
+                    <td class="font-mono text-orange-700 font-bold">{{ item.order_date|fa }}</td>
+                    <td class="text-orange-600 font-bold">{% if item.delay_days > 0 %}{{ item.delay_days|fa }}{% else %}—{% endif %}</td>
+                    {% elif selected_cat_kind == 'payment' %}
+                    <td>{{ item.expert_name|default:"—" }}</td>
+                    <td class="font-mono">{{ item.registration_date|fa }}</td>
+                    <td class="font-mono">{{ item.completion_date|fa }}</td>
+                    <td class="font-bold text-violet-700">{{ item.actual_days|fa }}</td>
+                    <td>{{ item.lead_days|fa }}</td>
+                    <td class="font-bold text-red-600">{{ item.over_days|fa }}</td>
+                    {% endif %}
+                    <td>
+                        <a href="{% url 'purchases:detail' item.pk %}" class="text-indigo-600 hover:underline">جزئیات</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{% if selected_cat_kind == 'request' %}7{% elif selected_cat_kind == 'order' %}8{% else %}9{% endif %}"
+                        class="text-center text-slate-400 py-8">پرونده انحرافی در این گروه یافت نشد</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if cat_page_obj and cat_page_obj.paginator.count > 0 %}
+    <div class="px-6 py-3.5 border-t border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
+        <span class="text-xs text-slate-500">
+            صفحه {{ cat_page_obj.number|fa }} از {{ cat_page_obj.paginator.num_pages|fa }}
+        </span>
+        {% if cat_page_obj.has_other_pages %}
+        <div class="flex items-center gap-1.5">
+            {% if cat_page_obj.has_previous %}
+            <a href="?{% if drilldown_query %}{{ drilldown_query }}&{% endif %}cat_page={{ cat_page_obj.previous_page_number }}"
+               class="btn btn-ghost !py-1.5 !px-3 !text-xs">قبلی</a>
+            {% endif %}
+            <span class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-bold">
+                {{ cat_page_obj.number|fa }} / {{ cat_page_obj.paginator.num_pages|fa }}
+            </span>
+            {% if cat_page_obj.has_next %}
+            <a href="?{% if drilldown_query %}{{ drilldown_query }}&{% endif %}cat_page={{ cat_page_obj.next_page_number }}"
+               class="btn btn-ghost !py-1.5 !px-3 !text-xs">بعدی</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
