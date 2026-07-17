@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
@@ -141,15 +143,17 @@ class PreInvoice(models.Model):
     
     @property
     def subtotal(self):
-        return sum(line.total for line in self.lines.all())
-    
+        return sum((line.total for line in self.lines.all()), Decimal('0'))
+
     @property
     def tax_amount(self):
-        return self.subtotal * (self.tax_rate / 100)
-    
+        rate = self.tax_rate if self.tax_rate is not None else Decimal('0')
+        return self.subtotal * (rate / Decimal('100'))
+
     @property
     def total(self):
-        return self.subtotal + self.tax_amount - self.discount
+        discount = self.discount if self.discount is not None else Decimal('0')
+        return self.subtotal + self.tax_amount - discount
 
 
 class PreInvoiceLine(models.Model):
@@ -177,4 +181,6 @@ class PreInvoiceLine(models.Model):
     
     @property
     def total(self):
-        return float(self.quantity) * float(self.unit_price)
+        qty = self.quantity if self.quantity is not None else Decimal('0')
+        price = self.unit_price if self.unit_price is not None else Decimal('0')
+        return qty * price
